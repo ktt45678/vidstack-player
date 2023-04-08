@@ -1,3 +1,9 @@
+## [0.4.3-F1.0](https://github.com/ktt45678/vidstack-player/compare/v0.4.3-F1...v0.4.3-F1.0) (2023-04-08)
+
+### Bug Fixes
+
+- replace cdnUrl with cdn ([bfeacfe](https://github.com/ktt45678/vidstack-player/commit/bfeacfebe6001f8c3416aca56d068c3420ae1cd3))
+
 ## 0.4.3-F1 (2023-04-08)
 
 ## [0.4.3](https://github.com/vidstack/player/compare/v0.4.2...v0.4.3) (2023-04-07)
