@@ -1,3 +1,5 @@
+## 0.4.3-F1 (2023-04-08)
+
 ## [0.4.3](https://github.com/vidstack/player/compare/v0.4.2...v0.4.3) (2023-04-07)
 
 ### Bug Fixes
