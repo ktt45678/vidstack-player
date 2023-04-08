@@ -1,3 +1,3 @@
 import { ICON } from '@vidstack/react';
 
-<ICON size={32} />
+<ICON size={32} />;
