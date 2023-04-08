@@ -5,4 +5,4 @@
 >
   {/* ^ remove `controls` attribute if you're designing a custom UI */}
   <MediaOutlet />
-</MediaPlayer>
+</MediaPlayer>;

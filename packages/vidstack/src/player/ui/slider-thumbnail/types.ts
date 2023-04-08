@@ -6,6 +6,11 @@ export interface SliderThumbnailProps {
    * file resource.
    */
   src: string;
+
+  /**
+   * Optional cdn url to apply image optimizations
+   */
+  cdnUrl: string | undefined;
 }
 
 /**

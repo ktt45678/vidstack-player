@@ -13,8 +13,8 @@ declare global {
 
 export const SliderThumbnailDefinition = defineCustomElement<MediaSliderThumbnailElement>({
   tagName: 'media-slider-thumbnail',
-  props: { src: { initial: '' } },
-  setup({ host, props: { $src } }) {
+  props: { src: { initial: '' }, cdnUrl: {} },
+  setup({ host, props: { $src, $cdnUrl } }) {
     const $img = signal<HTMLImageElement | null>(null),
       $imgSrc = signal(''),
       $imgLoaded = signal(false),
@@ -95,10 +95,17 @@ export const SliderThumbnailDefinition = defineCustomElement<MediaSliderThumbnai
       const [_src, _coords] = ((cue as any).text || '').split('#');
       const [_props, _values] = _coords.split('=');
 
+      const currentSrc = peek($src);
+      const currentCdnUrl = peek($cdnUrl);
+      const urlPrefix =
+        !_src.startsWith('/') && !_src.startsWith('http://') && !_src.startsWith('https://')
+          ? currentSrc.substring(0, currentSrc.lastIndexOf('/') + 1)
+          : '';
+
       $imgSrc.set(
-        !peek($src).startsWith('/') && _src.startsWith('/')
-          ? `${new URL(peek($src)).origin}${_src}`
-          : _src,
+        currentCdnUrl
+          ? currentCdnUrl.replace('{url}', encodeURIComponent(urlPrefix + _src))
+          : urlPrefix + _src,
       );
 
       if (_props && _values) {

@@ -15,7 +15,7 @@ const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const args = minimist(process.argv.slice(2));
 const isDryRun = args.dry;
-const skippedPackages = [];
+const skippedPackages = ['@ktt45678/vidstack-react'];
 const currentVersion = require('../package.json').version;
 const packagesDir = fs.readdirSync(path.resolve(__dirname, '../packages'));
 const packages = packagesDir.filter((pkg) => !pkg.startsWith('.'));
@@ -120,8 +120,8 @@ async function main() {
 
   step('Pushing to GitHub...');
   await runIfNotDry('git', ['tag', `v${targetVersion}`]);
-  await runIfNotDry('git', ['push', 'upstream', `refs/tags/v${targetVersion}`]);
-  await runIfNotDry('git', ['push', 'upstream', 'main']);
+  await runIfNotDry('git', ['push', 'origin', `refs/tags/v${targetVersion}`]);
+  await runIfNotDry('git', ['push', 'origin', 'custom']);
 
   if (isDryRun) {
     console.log(`\nDry run finished - run git diff to see package changes.`);
