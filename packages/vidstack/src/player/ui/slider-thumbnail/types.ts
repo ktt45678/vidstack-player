@@ -10,7 +10,7 @@ export interface SliderThumbnailProps {
   /**
    * Optional cdn url to apply image optimizations
    */
-  cdnUrl: string | undefined;
+  cdn: string | undefined;
 }
 
 /**

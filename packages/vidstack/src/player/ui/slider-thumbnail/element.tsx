@@ -13,8 +13,8 @@ declare global {
 
 export const SliderThumbnailDefinition = defineCustomElement<MediaSliderThumbnailElement>({
   tagName: 'media-slider-thumbnail',
-  props: { src: { initial: '' }, cdnUrl: {} },
-  setup({ host, props: { $src, $cdnUrl } }) {
+  props: { src: { initial: '' }, cdn: {} },
+  setup({ host, props: { $src, $cdn } }) {
     const $img = signal<HTMLImageElement | null>(null),
       $imgSrc = signal(''),
       $imgLoaded = signal(false),
@@ -96,7 +96,7 @@ export const SliderThumbnailDefinition = defineCustomElement<MediaSliderThumbnai
       const [_props, _values] = _coords.split('=');
 
       const currentSrc = peek($src);
-      const currentCdnUrl = peek($cdnUrl);
+      const currentCdnUrl = peek($cdn);
       const urlPrefix =
         !_src.startsWith('/') && !_src.startsWith('http://') && !_src.startsWith('https://')
           ? currentSrc.substring(0, currentSrc.lastIndexOf('/') + 1)
