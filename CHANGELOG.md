@@ -1,3 +1,14 @@
+## [0.4.4-F1](https://github.com/ktt45678/vidstack-player/compare/v0.4.4...v0.4.4-F1) (2023-04-16)
+
+### Bug Fixes
+
+- bump `maverick` to `0.33.1` ([0f1c5ae](https://github.com/ktt45678/vidstack-player/commit/0f1c5ae000582f4839c0dd1fd1e2870bdacd5e17))
+- chrome does not detect keyframes inserted before playhead ([c2ba7be](https://github.com/ktt45678/vidstack-player/commit/c2ba7bea0d6cb13a39b222d6b5162d31351e6ba3))
+- position captions correctly when scrolled out of view ([b161e74](https://github.com/ktt45678/vidstack-player/commit/b161e746760bc341c75f8af9a583fd8745a069ac))
+- replace cdnUrl with cdn ([e3f4b15](https://github.com/ktt45678/vidstack-player/commit/e3f4b15fd40d759ab4a0f9be09bb19024edf79ff))
+- use width to scale slider fill/progress tracks ([995d82d](https://github.com/ktt45678/vidstack-player/commit/995d82d62d8551758eb991826250913d78be5d63))
+- waiting not triggered when seeking while paused ([2d50b59](https://github.com/ktt45678/vidstack-player/commit/2d50b59e733ce50c6fce6bed9084b2a4fec21b1e))
+
 ## [0.4.4](https://github.com/vidstack/player/compare/v0.4.3...v0.4.4) (2023-04-11)
 
 ### Bug Fixes
