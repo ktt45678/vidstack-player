@@ -102,7 +102,8 @@ export class Thumbnail extends Component<ThumbnailAPI> {
 
   protected _onResolveThumbnail() {
     const activeCue = this._activeCue(),
-      thumbnails = peek(this._media.$store.thumbnails);
+      thumbnails = peek(this._media.$store.thumbnails),
+      imageCDN = peek(this._media.$store.thumbnails);
 
     if (!thumbnails || !activeCue) {
       this._src.set('');
@@ -118,17 +119,19 @@ export class Thumbnail extends Component<ThumbnailAPI> {
       return;
     }
 
-    this._src.set(this._resolveThumbnailSrc(thumbnails, _src));
+    this._src.set(this._resolveThumbnailSrc(thumbnails, _src, imageCDN));
     this._requestResize();
   }
 
-  protected _resolveThumbnailSrc(baseURL: string, src: string) {
-    return !/https?:/.test(src)
-      ? `${baseURL.split('/').slice(0, -1).join('/')}${src.replace(/^\/?/, '/')}`.replace(
-          /^\/\//,
-          '/',
-        )
-      : src;
+  protected _resolveThumbnailSrc(baseURL: string, src: string, imageCDN: string | null) {
+    const urlPrefix =
+      !src.startsWith('/') && !src.startsWith('http://') && !src.startsWith('https://')
+        ? baseURL.substring(0, baseURL.lastIndexOf('/') + 1)
+        : '';
+
+    return imageCDN
+      ? imageCDN.replace('{url}', encodeURIComponent(urlPrefix + src))
+      : urlPrefix + src;
   }
 
   protected _resolveThumbnailCoords(coords: string) {

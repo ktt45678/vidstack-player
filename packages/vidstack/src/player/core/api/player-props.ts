@@ -50,6 +50,7 @@ export const mediaPlayerProps: PropDeclarations<PlayerProps> = {
   keyShortcuts: MEDIA_KEY_SHORTCUTS,
   title: '',
   thumbnails: null,
+  imageCDN: null,
   textTracks: defineProp<(TextTrack | TextTrackInit)[]>({
     value: [],
     attribute: false,
@@ -79,6 +80,7 @@ export interface PlayerProps
     | 'playbackRate'
     | 'title'
     | 'thumbnails'
+    | 'imageCDN'
     | 'viewType'
     | 'volume'
     // live

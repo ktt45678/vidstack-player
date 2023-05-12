@@ -56,6 +56,7 @@ export const MediaStoreFactory = new StoreFactory<MediaState>({
   textTracks: [],
   textTrack: null,
   thumbnails: null,
+  imageCDN: null,
   thumbnailCues: [],
   volume: 1,
   waiting: false,
@@ -591,6 +592,10 @@ export interface MediaState {
    * file resource.
    */
   thumbnails: string | null;
+  /**
+   * Optional cdn url to apply image optimizations
+   */
+  imageCDN: string | null;
   /**
    * List of VTT cues that were parsed from the `thumbnails` WebVTT file.
    */
