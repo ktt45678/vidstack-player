@@ -22,6 +22,13 @@ The media volume range is between `0` (min) and `1` (max), but on the slider it'
 
 {% code_preview name="preview" size="small" copyHighlight=true highlight="html:2|react:7" /%}
 
+## Orientation
+
+You can change the orientation of the slider to vertical by setting the `aria-orientation`
+attribute like so:
+
+{% code_preview name="vertical" size="small" copy=true /%}
+
 ## Keyboard
 
 The volume slider will receive keyboard input when focused. The [interaction keys](https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/slider_role#keyboard_interactions) are based on
@@ -44,14 +51,7 @@ on the player.
 You can override the default styles with CSS like so:
 
 ```css {% copy=true %}
-/* CSS vars are available for simple customization. */
 media-volume-slider {
-  /* Default values are shown below. */
-  --media-slider-height: 48px;
-  --media-slider-thumb-size: 14px;
-  --media-slider-focused-thumb-size: calc(var(--thumb-size) * 1.1);
-  --media-slider-track-height: 4px;
-  --media-slider-focused-track-height: calc(var(--track-height) * 1.25);
 }
 
 /* Apply styles when device pointer is within slider bounds. */
@@ -64,6 +64,10 @@ media-volume-slider[data-dragging] {
 
 /* Shorthand for both dragging and pointing. */
 media-volume-slider[data-interactive] {
+}
+
+/** Apply styles to preview. */
+media-volume-slider [slot='preview'] {
 }
 ```
 
@@ -108,31 +112,21 @@ media-volume-slider[data-focus] [part='track'] {
 }
 ```
 
-### Previews
+### CSS Variables
 
-```css
-/* CSS vars are available for simple customization. */
-media-volume-slider {
-  /* Default values are shown below. */
-  --media-slider-preview-width: var(--computed-width);
-  --media-slider-preview-gap: calc(var(--computed-height) + 8px);
-}
-
-/** Override default preview styles. */
-media-volume-slider [slot='preview'] {
-}
-```
+See the [slider CSS variables](/docs/player/components/sliders/slider#css-variables)
+for simple customization of the default slider styles.
 
 ## Tailwind
 
-A complete volume slider example built with Tailwind:
+### Horizontal
+
+A horizontal volume slider built with Tailwind:
 
 {% code_snippet name="tailwind" copy=true /%}
 
-{% callout type="tip" %}
+### Vertical
 
-- 📖 The `$tag:media-slider` [Tailwind guide](/docs/player/components/sliders/slider#tailwind)
-  contains background documentation on working with sliders.
-- All of this code is reusable across other slider implementations.
+A vertical volume slider built with Tailwind:
 
-{% /callout %}
+{% code_snippet name="tw-vertical" copy=true /%}
