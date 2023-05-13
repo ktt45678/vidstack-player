@@ -1,3 +1,5 @@
+## [0.5.2-F2](https://github.com/ktt45678/vidstack-player/compare/v0.5.2-F1...v0.5.2-F2) (2023-05-13)
+
 ## [0.5.2-F1](https://github.com/ktt45678/vidstack-player/compare/v0.5.1-F1...v0.5.2-F1) (2023-05-13)
 
 ### Bug Fixes
