@@ -1,3 +1,14 @@
+## [0.5.3-F1](https://github.com/ktt45678/vidstack-player/compare/v0.5.2-F2...v0.5.3-F1) (2023-05-13)
+
+### Bug Fixes
+
+- allow menu button/items to connect to existing menu ([56d853e](https://github.com/ktt45678/vidstack-player/commit/56d853e2a310411276954b87371df9664b5b95c0))
+- improve handling of misaligned time slider chapters ([cc5b164](https://github.com/ktt45678/vidstack-player/commit/cc5b16452b0d66169a62ff997ecbb4b1c637d5c3))
+- **react:** omit duplicate react event callbacks ([652d547](https://github.com/ktt45678/vidstack-player/commit/652d5473c2bdb04ffcb741d670301f3570582317))
+- **react:** resolve ssr/hydration issues ([4697bee](https://github.com/ktt45678/vidstack-player/commit/4697beed0f7c666ab0dc85c2ef00cda9a45120b1))
+- reflect gesture props as attrs for styling ([2ff0991](https://github.com/ktt45678/vidstack-player/commit/2ff0991acb870b03e5e1fccd251ddb87ac5c7ed1))
+- vtt parser should only accept whitelisted settings ([077f659](https://github.com/ktt45678/vidstack-player/commit/077f6592563994a24ef73ac209f761c04e8d21c3))
+
 ## [0.5.3](/compare/v0.5.2...v0.5.3) (2023-05-13)
 
 ### Bug Fixes
