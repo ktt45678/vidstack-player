@@ -1,15 +1,13 @@
-## [0.5.2-F2](https://github.com/ktt45678/vidstack-player/compare/v0.5.2-F1...v0.5.2-F2) (2023-05-13)
-
-## [0.5.2-F1](https://github.com/ktt45678/vidstack-player/compare/v0.5.1-F1...v0.5.2-F1) (2023-05-13)
+## [0.5.3](/compare/v0.5.2...v0.5.3) (2023-05-13)
 
 ### Bug Fixes
 
-- **react:** resolve correct event callback types ([d477db9](https://github.com/ktt45678/vidstack-player/commit/d477db9a61f4603f63e20c64ca3422b40232fa8f))
-- thumbnail get time is not bound ([c5168d9](https://github.com/ktt45678/vidstack-player/commit/c5168d95cd97266dbf111dded492c4c93b6c2476))
-
-### Features
-
-- text track content can be passed in directly as string ([7f3aba9](https://github.com/ktt45678/vidstack-player/commit/7f3aba9297dcc7b8e96f8746d744c1feaf30e291))
+- allow menu button/items to connect to existing menu 56d853e
+- improve handling of misaligned time slider chapters cc5b164
+- **react:** omit duplicate react event callbacks 652d547
+- **react:** resolve ssr/hydration issues 4697bee
+- reflect gesture props as attrs for styling 2ff0991
+- vtt parser should only accept whitelisted settings 077f659
 
 ## [0.5.2](/compare/v0.5.1...v0.5.2) (2023-05-12)
 
