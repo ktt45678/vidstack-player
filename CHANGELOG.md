@@ -1,47 +1,13 @@
-## [0.5.1-F1](https://github.com/ktt45678/vidstack-player/compare/v0.4.5-F1...v0.5.1-F1) (2023-05-12)
+## [0.5.2](/compare/v0.5.1...v0.5.2) (2023-05-12)
 
 ### Bug Fixes
 
-- `data-hidden` -> `aria-hidden` ([73d857d](https://github.com/ktt45678/vidstack-player/commit/73d857d35b9b0f90186d4541d80a22f52c89afef))
-- add `role` to player component ([33388e4](https://github.com/ktt45678/vidstack-player/commit/33388e491dee50466a087886d5e46c0d947adc98))
-- add captions css variables ([08ffdaa](https://github.com/ktt45678/vidstack-player/commit/08ffdaa4e0daaab6a633248a8a35f72d190a7b72))
-- add live indicator css variables ([dbae587](https://github.com/ktt45678/vidstack-player/commit/dbae587cbd8f4163a2b7ae499c2a64085e99ae53))
-- add required aria attrs on captions overlay ([5b0f2f0](https://github.com/ktt45678/vidstack-player/commit/5b0f2f0fb5f9efc3fd64c6d2cc103a60a457947f))
-- add slider css variables ([dae03fb](https://github.com/ktt45678/vidstack-player/commit/dae03fbcbeaeedfe999f2ae8c6f9350d58a3f7c4))
-- add time css variables ([e8dea99](https://github.com/ktt45678/vidstack-player/commit/e8dea99fe2ac9349e32c5e04d4831740abad8161))
-- allow one default text track per kind ([ae3003c](https://github.com/ktt45678/vidstack-player/commit/ae3003ca47c189f2010ecefc2a46afef614ea01a))
-- aspect ratio setting should not be applied in fullscreen ([d0701b8](https://github.com/ktt45678/vidstack-player/commit/d0701b8a4f29cac4a30e3a6ddbb08ca6fb9c846f))
-- check gesture is in bounds before queueing ([f3525ea](https://github.com/ktt45678/vidstack-player/commit/f3525eaff741a2c61a778b5096b76b1e5d352e48))
-- correctly resolve thumbnail image relative to given src ([512aaec](https://github.com/ktt45678/vidstack-player/commit/512aaec15d85a5ac9e3e2fb7e4803a69485ec384))
-- detach text renderer when removed ([c67b594](https://github.com/ktt45678/vidstack-player/commit/c67b594202f1945155f6340abb82561d28bc5028))
-- ensure display none on svgs is applied ([48c3ceb](https://github.com/ktt45678/vidstack-player/commit/48c3cebd0eedcefb2de07f749acd4e370e675dcb))
-- null track on audio track change event ([dfca7af](https://github.com/ktt45678/vidstack-player/commit/dfca7af2d8f11276cc841d17099ecfb64ebcb3ab)), closes [#828](https://github.com/ktt45678/vidstack-player/issues/828) [#829](https://github.com/ktt45678/vidstack-player/issues/829)
-- parse captions ms timestamp correctly ([b1634dd](https://github.com/ktt45678/vidstack-player/commit/b1634dd49258118b827cd2bdb9e30c48224f85b2))
-- **react:** add `part` jsx attr to dom elements ([e96f8e1](https://github.com/ktt45678/vidstack-player/commit/e96f8e1be780ee27a5b01718356b94dd0cabe540))
-- **react:** fast refresh breaking media outlet ([63ee99a](https://github.com/ktt45678/vidstack-player/commit/63ee99a422876725b3abc569c9342773a5d3a0f9))
-- **react:** player not attached in child components on connect ([f1162e4](https://github.com/ktt45678/vidstack-player/commit/f1162e437303bf3cd1ac49bf72f05e2b4fd87738))
-- set `credentials` when fetching slider thumbnails ([658e235](https://github.com/ktt45678/vidstack-player/commit/658e2356622d0b5c66c693c3860e8d91268e7655))
-- set credentials when fetching tracks based on `crossorigin` ([1315aa7](https://github.com/ktt45678/vidstack-player/commit/1315aa7272525f11ba80ff37692d7901e3051971))
-- time slider events re-connecting multiple times on setup ([3c4fef3](https://github.com/ktt45678/vidstack-player/commit/3c4fef3bba2ce0b458f3e45869638592c9adf737))
+- **react:** resolve correct event callback types d477db9
+- thumbnail get time is not bound c5168d9
 
 ### Features
 
-- add missing chevron/arrow media icons ([9f32bf8](https://github.com/ktt45678/vidstack-player/commit/9f32bf8e01f3de35052eeced5a63b8af8651da60))
-- bump all dependencies ([e55842c](https://github.com/ktt45678/vidstack-player/commit/e55842c0433922adebfbb96e98b11c292fe3df0f))
-- migrate to jassub for `.ass` rendering ([#810](https://github.com/ktt45678/vidstack-player/issues/810)) ([d6c9c8f](https://github.com/ktt45678/vidstack-player/commit/d6c9c8fae4a88f596531621a35c2a854f14d120d))
-- new `<media-buffering-indicator>` component ([4e9432d](https://github.com/ktt45678/vidstack-player/commit/4e9432d36e97ee5069654c22240648bb441e1a42))
-- new `<media-chapters-menu-items>` ([ecbf921](https://github.com/ktt45678/vidstack-player/commit/ecbf921c91e147c1a125ee2a7b96dee42b015f7e)), closes [#830](https://github.com/ktt45678/vidstack-player/issues/830)
-- new `<media-gesture>` component ([072b62d](https://github.com/ktt45678/vidstack-player/commit/072b62d115ab7e247046cd691158824be172265c)), closes [#755](https://github.com/ktt45678/vidstack-player/issues/755)
-- new `<media-thumbnail>` component ([35f628d](https://github.com/ktt45678/vidstack-player/commit/35f628dcc3f213de17a72cd228e6dba9f90a9479)), closes [#831](https://github.com/ktt45678/vidstack-player/issues/831)
-- new `<media-tooltip>` component ([44bd97d](https://github.com/ktt45678/vidstack-player/commit/44bd97dec66c9781a50cfb6c92f30a3e82c48a1b))
-- new `title` prop on player ([dcbee0b](https://github.com/ktt45678/vidstack-player/commit/dcbee0b25ab4c9fc40b1b3074042fd77a4c42699))
-- new class forwarding props on sliders ([6c4bfaa](https://github.com/ktt45678/vidstack-player/commit/6c4bfaa2f36d5614a01570fc3d6bf5f2d224ec00))
-- new maverick component system ([4c22863](https://github.com/ktt45678/vidstack-player/commit/4c228637e3e3a2a37bb010f4432420677861f2ee))
-- new menu components ([c90648a](https://github.com/ktt45678/vidstack-player/commit/c90648ad1a005c1fbaadca7adf1578617c25d61a)), closes [#822](https://github.com/ktt45678/vidstack-player/issues/822) [#54](https://github.com/ktt45678/vidstack-player/issues/54) [#60](https://github.com/ktt45678/vidstack-player/issues/60) [#61](https://github.com/ktt45678/vidstack-player/issues/61) [#62](https://github.com/ktt45678/vidstack-player/issues/62) [#823](https://github.com/ktt45678/vidstack-player/issues/823) [#824](https://github.com/ktt45678/vidstack-player/issues/824) [#825](https://github.com/ktt45678/vidstack-player/issues/825) [#826](https://github.com/ktt45678/vidstack-player/issues/826)
-- **react:** export all component props ([ebc5e6a](https://github.com/ktt45678/vidstack-player/commit/ebc5e6a6781ba4c3c3b19ef4bfbcccfa3c9f9162))
-- support `json` text tracks type ([b2fd876](https://github.com/ktt45678/vidstack-player/commit/b2fd876ebf652e9a02d4e6342eb22b080b7c2f9f))
-- time slider chapters ([2c2014d](https://github.com/ktt45678/vidstack-player/commit/2c2014db09a6ef969b413582e4b767542050a344)), closes [#805](https://github.com/ktt45678/vidstack-player/issues/805)
-- vertical volume slider ([fcf313c](https://github.com/ktt45678/vidstack-player/commit/fcf313cd153fc1734ab0ffd0ea6ad0efaee101db)), closes [#804](https://github.com/ktt45678/vidstack-player/issues/804)
+- text track content can be passed in directly as string 7f3aba9
 
 ## [0.5.1](/compare/v0.5.0...v0.5.1) (2023-05-12)
 
