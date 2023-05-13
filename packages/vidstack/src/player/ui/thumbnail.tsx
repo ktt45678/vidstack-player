@@ -103,7 +103,7 @@ export class Thumbnail extends Component<ThumbnailAPI> {
   protected _onResolveThumbnail() {
     const activeCue = this._activeCue(),
       thumbnails = peek(this._media.$store.thumbnails),
-      imageCDN = peek(this._media.$store.thumbnails);
+      imageCDN = peek(this._media.$store.imageCDN);
 
     if (!thumbnails || !activeCue) {
       this._src.set('');
