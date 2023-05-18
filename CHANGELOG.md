@@ -1,3 +1,21 @@
+## [0.5.6-F1](https://github.com/ktt45678/vidstack-player/compare/v0.5.3-F1...v0.5.6-F1) (2023-05-18)
+
+### Bug Fixes
+
+- observe source/track attr changes ([242dd1b](https://github.com/ktt45678/vidstack-player/commit/242dd1bd1b85d10d7d9265b824891c82d9b7c668))
+- prevent tailwind normalization breaking menu radio check ([83e95d6](https://github.com/ktt45678/vidstack-player/commit/83e95d62846cfe0c82dbd851f25bd68aae0e3f2a))
+- **react:** hmr element register error ([f66d78d](https://github.com/ktt45678/vidstack-player/commit/f66d78dfd0179eb8c09320ea998adec4adb272c8))
+- **react:** hmr issue in remix ([02ac082](https://github.com/ktt45678/vidstack-player/commit/02ac0827e8a6a3749e1a6bb2b5c65346d00736bb))
+- **react:** menu hydration issues ([0ee019f](https://github.com/ktt45678/vidstack-player/commit/0ee019f7b08325b340e97734c0e6dfae8d05521b))
+- **react:** return array copy from store hooks ([84132b2](https://github.com/ktt45678/vidstack-player/commit/84132b26c0f182fcff343d2461b2dc6385ef3b37))
+- **react:** tooltip attach error ([b665c4b](https://github.com/ktt45678/vidstack-player/commit/b665c4b8f317b1869553980e3ec3b158066b827c))
+- **react:** use media player hook not updating ([a89a58c](https://github.com/ktt45678/vidstack-player/commit/a89a58cecdfe64c05a0e59110b969465c1771efc))
+- sort quality menu items in descending order ([89f6726](https://github.com/ktt45678/vidstack-player/commit/89f6726cb827458197bc343e749b7f8413e52378))
+
+### Features
+
+- fallback to checking source headers for media type ([053f03a](https://github.com/ktt45678/vidstack-player/commit/053f03a63c2cb85a73a7886fc29ea3bbbab3391c))
+
 ## [0.5.6](https://github.com/vidstack/player/compare/v0.5.5...v0.5.6) (2023-05-18)
 
 ### Bug Fixes
