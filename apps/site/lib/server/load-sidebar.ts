@@ -3,9 +3,9 @@ import path from 'node:path';
 
 import { slash } from '@vessel-js/app/http';
 
-import type { SidebarLink, SidebarLinks } from '$lib/layouts/sidebar/context';
-import { formatElementHeading } from '$lib/stores/element';
-import { kebabToTitleCase } from '$lib/utils/string';
+import type { SidebarLink, SidebarLinks } from '../layouts/sidebar/context';
+import { formatElementHeading } from '../stores/format';
+import { kebabToTitleCase } from '../utils/string';
 
 export function loadPlayerSidebar(): SidebarLinks {
   const include = /\/(_|page)\.md/;
@@ -24,6 +24,7 @@ export function loadPlayerSidebar(): SidebarLinks {
     'Getting Started': links(slugs, /^\/getting-started/),
     'Core Concepts': links(slugs, /^\/core-concepts/),
     Providers: links(slugs, /^\/providers/),
+    API: links(slugs, /^\/api/),
     Styling: links(slugs, /^\/styling/),
     Media: links(slugs, /^\/components\/media/),
     Layout: links(slugs, /^\/components\/layout/),

@@ -5,29 +5,41 @@ import {
   type MethodMeta,
   type PropMeta,
 } from '@maverick-js/compiler/analyze';
-import { encode } from 'html-entities';
+import MarkdownIt from 'markdown-it';
 import elements from 'vidstack/elements.json';
 
 import { getTagNameFromPath } from '$lib/stores/element';
 
-const findRE = /`(.*?)`/g;
-const replace = (_, c) => `<code>${encode(c)}</code>`;
+const parser = new MarkdownIt({ html: true }),
+  parsed = new Set<string>();
 
 export async function loadComponentAPI(pathname: string): Promise<ComponentApi> {
   let tagName = getTagNameFromPath(pathname);
+
   const component = elements.components.find((component) => component.tag.name === tagName)!;
 
   if (!component) return {};
 
-  walkComponentDocs(component, (docs) => docs.replace(findRE, replace));
+  if (!parsed.has(tagName)) {
+    walkComponentDocs(component, (docs) => {
+      return parser.render(docs.trim());
+    });
+
+    parsed.add(tagName);
+  }
+
+  const props = extractProps(component);
 
   return {
-    props: extractProps(component),
+    props,
     events: extractEvents(component),
     slots: extractSlots(component),
     cssVars: extractCssVars(component),
     cssParts: extractCssParts(component),
-    instanceProps: extractInstanceProps(component),
+    instanceProps: extractInstanceProps(
+      component,
+      new Set(props ? props.filter((prop) => prop.attr).map((prop) => prop.name) : []),
+    ),
     instanceMethods: extractInstanceMethods(component),
   };
 }
@@ -39,6 +51,7 @@ function extractProps(component: ComponentMeta) {
       attr: prop.attribute,
       name: prop.name,
       docs: prop.docs,
+      default: prop.default,
       readonly: prop.readonly,
       type: prop.type,
       link: findLink(prop),
@@ -80,10 +93,10 @@ function extractCssParts(component: ComponentMeta) {
   }));
 }
 
-function extractInstanceProps(component: ComponentMeta) {
+function extractInstanceProps(component: ComponentMeta, filter: Set<string>) {
   if (!component.members) return;
   return component.members.props
-    ?.filter((prop) => !prop.internal)
+    ?.filter((prop) => !prop.internal && !filter.has(prop.name))
     .map((prop) => ({
       name: prop.name,
       docs: prop.docs,

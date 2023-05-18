@@ -92,8 +92,8 @@
 >
   {#if showTopBar}
     <div
-      class="code-fence-top-bar sticky top-0 left-0 z-10 flex items-center py-1 pt-2 backdrop-blur backdrop-filter"
-      style="background-color: var(--code-fence-top-bar-bg);"
+      class="code-fence-top-bar sticky top-0 left-0 z-10 flex items-center py-1 pt-2"
+      style="background-color: var(--code-fence-bg);"
     >
       {#if hasTopbarTitle}
         <span class="code-fence-title ml-3.5 font-mono text-sm text-soft">{topbarTitle}</span>
@@ -122,8 +122,8 @@
           </div>
 
           <CopyFileIcon
-            width="24"
-            height="24"
+            width="20"
+            height="20"
             class={clsx(
               showCopiedCodePrompt
                 ? 'opacity-0'
@@ -155,7 +155,7 @@
 
     {#if currentHighlightedLines.length > 0}
       <div
-        class="pointer-events-none absolute inset-0 mt-[0.7em] h-full w-full leading-[27px]"
+        class="pointer-events-none absolute inset-0 mt-[0.7em] h-full w-full leading-[24px]"
         aria-hidden="true"
       >
         {#each lines as lineNumber}

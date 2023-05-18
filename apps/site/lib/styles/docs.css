@@ -33,7 +33,6 @@ code *[style*='color: #676E95; font-'] {
 .code-snippets,
 .code-fence {
   --code-fence-bg: rgb(var(--color-body));
-  --code-fence-top-bar-bg: rgb(var(--color-body) / 0.6);
   --code-copied-bg-color: rgb(var(--color-brand) / 0.8);
   --terminal-line-pointer: rgb(var(--color-brand));
   --code-highlight-border: rgb(var(--color-brand));
@@ -44,15 +43,12 @@ code *[style*='color: #676E95; font-'] {
 .dark .code-snippets,
 .dark .code-fence {
   --code-fence-bg: rgb(var(--color-elevate));
-  --code-fence-top-bar-bg: rgb(var(--color-elevate) / 0.8);
 }
 
-@supports (backdrop-filter: blur(0)) or (-webkit-backdrop-filter: blur(0)) {
-  .code-preview,
-  .code-snippets,
-  .code-fence {
-    --code-fence-top-bar-bg: rgb(22, 22, 22 / 0.6);
-  }
+.code-snippets pre > code,
+.code-preview pre > code,
+.code-fence pre > code {
+  background-color: unset !important;
 }
 
 @media screen and (min-width: 768px) {
@@ -128,6 +124,17 @@ code *[style*='color: #676E95; font-'] {
   margin-top: 0.5rem;
 }
 
+.docs h1 + p {
+  font-size: 1.125rem;
+  margin-top: -14px;
+}
+
+.docs h1 + p + p {
+  border-top: 1px solid rgb(var(--color-border));
+  padding-top: 2.5rem;
+  margin-top: 2.5rem;
+}
+
 .docs h1 + .steps,
 .docs h2 + .steps,
 .docs h3 + .steps {
@@ -168,4 +175,9 @@ code *[style*='color: #676E95; font-'] {
 
 .DocSearch-Button-Key {
   @apply !ring-0;
+}
+
+.api-table tbody tr td:first-child > code,
+.api-table tbody tr td:first-child > div > code {
+  background-color: unset;
 }

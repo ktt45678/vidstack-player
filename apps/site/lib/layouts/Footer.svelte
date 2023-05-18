@@ -28,10 +28,10 @@
 
         <div class="flex pl-2 420:pl-0 420:justify-center 768:justify-start">
           <div
-            class="grid grid-cols-1 grid-rows-1 420:grid-cols-2 420:grid-rows-2 gap-x-20 gap-y-16 576:grid-cols-3 768:grid-cols-3 768:grid-rows-2 768:gap-x-16 992:grid-cols-4 992:grid-rows-1 1200:gap-x-20"
+            class="grid grid-cols-1 grid-rows-1 420:grid-cols-2 420:grid-rows-2 gap-x-20 gap-y-16 576:grid-cols-3 768:grid-cols-3 768:grid-rows-2 768:gap-x-16 992:grid-cols-4 992:grid-rows-1"
           >
             <section class="flex flex-col">
-              <h1 class="text-base font-semibold">Getting Started</h1>
+              <h1 class="text-[15px] font-semibold">Getting Started</h1>
               <ul class="text-soft mt-4 space-y-4">
                 <li class="text-soft hover:font-medium font-base hover:underline hover:text-brand">
                   <a href="/docs/player/getting-started/installation">Installation</a>
@@ -79,13 +79,19 @@
               <h1 class="text-base font-bold">Socials</h1>
               <ul class="text-soft mt-4 space-y-4">
                 <li class="text-soft hover:font-medium font-base hover:underline hover:text-brand">
-                  <a href="https://twitter.com/vidstackjs?lang=en">Twitter</a>
+                  <a href="https://twitter.com/vidstackjs?lang=en" target="_blank" rel="noreferrer">
+                    Twitter
+                  </a>
                 </li>
                 <li class="text-soft hover:font-medium font-base hover:underline hover:text-brand">
-                  <a href="https://github.com/vidstack">GitHub</a>
+                  <a href="https://github.com/vidstack" target="_blank" rel="noreferrer">
+                    GitHub
+                  </a>
                 </li>
                 <li class="text-soft hover:font-medium font-base hover:underline hover:text-brand">
-                  <a href="https://discord.com/invite/7RGU7wvsu9">Discord</a>
+                  <a href="https://discord.com/invite/7RGU7wvsu9" target="_blank" rel="noreferrer">
+                    Discord
+                  </a>
                 </li>
               </ul>
             </section>
