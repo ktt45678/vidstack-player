@@ -4,7 +4,6 @@ if (__DEV__) {
 
 // Icons
 export * from './icons/types';
-export * from './icons/component';
 
 // Foundation
 export * from './foundation/list/list';
@@ -110,3 +109,6 @@ export * from './player/ui/live-indicator';
 export * from './player/ui/poster';
 export * from './player/ui/time';
 export * from './player/ui/thumbnail';
+
+// Skins
+export * from './player/skins/community/skin';

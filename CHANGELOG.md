@@ -1,20 +1,25 @@
-## [0.5.6-F1](https://github.com/ktt45678/vidstack-player/compare/v0.5.3-F1...v0.5.6-F1) (2023-05-18)
+## [0.6.1](https://github.com/vidstack/player/compare/v0.6.0...v0.6.1) (2023-06-06)
 
 ### Bug Fixes
 
-- observe source/track attr changes ([242dd1b](https://github.com/ktt45678/vidstack-player/commit/242dd1bd1b85d10d7d9265b824891c82d9b7c668))
-- prevent tailwind normalization breaking menu radio check ([83e95d6](https://github.com/ktt45678/vidstack-player/commit/83e95d62846cfe0c82dbd851f25bd68aae0e3f2a))
-- **react:** hmr element register error ([f66d78d](https://github.com/ktt45678/vidstack-player/commit/f66d78dfd0179eb8c09320ea998adec4adb272c8))
-- **react:** hmr issue in remix ([02ac082](https://github.com/ktt45678/vidstack-player/commit/02ac0827e8a6a3749e1a6bb2b5c65346d00736bb))
-- **react:** menu hydration issues ([0ee019f](https://github.com/ktt45678/vidstack-player/commit/0ee019f7b08325b340e97734c0e6dfae8d05521b))
-- **react:** return array copy from store hooks ([84132b2](https://github.com/ktt45678/vidstack-player/commit/84132b26c0f182fcff343d2461b2dc6385ef3b37))
-- **react:** tooltip attach error ([b665c4b](https://github.com/ktt45678/vidstack-player/commit/b665c4b8f317b1869553980e3ec3b158066b827c))
-- **react:** use media player hook not updating ([a89a58c](https://github.com/ktt45678/vidstack-player/commit/a89a58cecdfe64c05a0e59110b969465c1771efc))
-- sort quality menu items in descending order ([89f6726](https://github.com/ktt45678/vidstack-player/commit/89f6726cb827458197bc343e749b7f8413e52378))
+- **react:** menu throwing during ssr ([ecc205f](https://github.com/vidstack/player/commit/ecc205f4b820f9d13e5a400eb633d2e2d024e04e))
+
+# [0.6.0](https://github.com/vidstack/player/compare/v0.5.6...v0.6.0) (2023-06-06)
+
+### Bug Fixes
+
+- drop `.cjs` exports ([f20999c](https://github.com/vidstack/player/commit/f20999c290131ee90183e3cd6392f7e169e7422b))
+- dynamically load captions lib for parsing thumbnails ([065934c](https://github.com/vidstack/player/commit/065934cd1f43b97792cfbc9caaa6eabc4f16981c))
+- ignore numpad seeking when meta key is down ([74d19fb](https://github.com/vidstack/player/commit/74d19fbc9a80fdebbb62283172bcdef44b17f476))
+- only set menu item hint text when provided ([dacaa2d](https://github.com/vidstack/player/commit/dacaa2d9a6f1bce6338b0757c119bd86cd8d9755))
+- pause user idle tracking when interacting with player ([19014dd](https://github.com/vidstack/player/commit/19014dd84bbd33a82fda8a8e00e822c43559c5d0))
+- resolve mem leaks and destroy provider ([c9b351c](https://github.com/vidstack/player/commit/c9b351c2792851e6e30038f4fc36ab5702535261))
+- split icons into a separate import path ([8d1187a](https://github.com/vidstack/player/commit/8d1187ac4872e4916d891b98b368d5999df39490)), closes [#841](https://github.com/vidstack/player/issues/841)
 
 ### Features
 
-- fallback to checking source headers for media type ([053f03a](https://github.com/ktt45678/vidstack-player/commit/053f03a63c2cb85a73a7886fc29ea3bbbab3391c))
+- community skin ([7de0002](https://github.com/vidstack/player/commit/7de000257cc5b2e9f606e7cbaaaff8124af35e9d)), closes [#73](https://github.com/vidstack/player/issues/73) [#839](https://github.com/vidstack/player/issues/839) [#840](https://github.com/vidstack/player/issues/840)
+- display bitrate in quality menu ([e7d5e46](https://github.com/vidstack/player/commit/e7d5e4622a86aea369498a59a8b8022601938645)), closes [#838](https://github.com/vidstack/player/issues/838)
 
 ## [0.5.6](https://github.com/vidstack/player/compare/v0.5.5...v0.5.6) (2023-05-18)
 
