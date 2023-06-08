@@ -55,6 +55,10 @@ export const mediaPlayerProps: PropDeclarations<PlayerProps> = {
     value: [],
     attribute: false,
   }),
+  smallBreakpointX: 600,
+  largeBreakpointX: 980,
+  smallBreakpointY: 380,
+  largeBreakpointY: 600,
 };
 
 export interface MediaStateAccessors
@@ -191,4 +195,20 @@ export interface PlayerProps
    * ```
    */
   keyShortcuts: MediaKeyShortcuts;
+  /**
+   * The maximum player width in pixels for when the small breakpoint should be active.
+   */
+  smallBreakpointX: number;
+  /**
+   * The minimum player width in pixels for when the large breakpoint should begin being active.
+   */
+  largeBreakpointX: number;
+  /**
+   * The maximum player height in pixels for when the small breakpoint should be active.
+   */
+  smallBreakpointY: number;
+  /**
+   * The minimum player height in pixels for when the large breakpoint should begin being active.
+   */
+  largeBreakpointY: number;
 }

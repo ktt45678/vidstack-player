@@ -138,7 +138,7 @@ export class Thumbnail extends Component<ThumbnailAPI> {
   protected _resolveThumbnailCoords(coords: string) {
     const [props, values] = coords.split('='),
       resolvedCoords = {},
-      coordValues = values.split(',');
+      coordValues = values?.split(',');
 
     if (!props || !values) return null;
 

@@ -176,8 +176,9 @@ export class Player extends Component<PlayerAPI> implements MediaStateAccessors 
     pointerQuery.onchange = this._onTouchChange.bind(this);
 
     const resize = new ResizeObserver(this._onResize.bind(this));
-    this._onResize();
     resize.observe(el);
+
+    effect(this._onResize.bind(this));
 
     this.dispatch('media-player-connect', {
       detail: this.el as MediaPlayerElement,
@@ -213,14 +214,25 @@ export class Player extends Component<PlayerAPI> implements MediaStateAccessors 
   }
 
   private _watchTitle() {
-    const { title, live, viewType } = this.$store,
+    const { title } = this.$props,
+      { live, viewType } = this.$store,
       isLive = live(),
       type = uppercaseFirstChar(viewType()),
       typeText = type !== 'Unknown' ? `${isLive ? 'Live ' : ''}${type}` : isLive ? 'Live' : 'Media';
+
+    const newTitle = title();
+    if (newTitle) {
+      this.el?.setAttribute('data-title', newTitle);
+      this.el?.removeAttribute('title');
+    }
+
+    const currentTitle = this.el?.getAttribute('data-title') || '';
+    this.$store.title.set(currentTitle);
+
     setAttribute(
       this.el!,
       'aria-label',
-      title() ? `${typeText} - ${title()}` : typeText + ' Player',
+      currentTitle ? `${typeText} - ${currentTitle}` : typeText + ' Player',
     );
   }
 
@@ -261,6 +273,7 @@ export class Player extends Component<PlayerAPI> implements MediaStateAccessors 
       $attrs[attrName] = this.$store[prop] as () => string | number;
     }
 
+    delete $attrs.title;
     this.setAttributes($attrs);
   }
 
@@ -282,8 +295,9 @@ export class Player extends Component<PlayerAPI> implements MediaStateAccessors 
 
     const width = this.el!.clientWidth,
       height = this.el!.clientHeight,
-      bpx = width < 600 ? 'sm' : width < 980 ? 'md' : 'lg',
-      bpy = height < 380 ? 'sm' : height < 600 ? 'md' : 'lg';
+      { smallBreakpointX, smallBreakpointY, largeBreakpointX, largeBreakpointY } = this.$props,
+      bpx = width < smallBreakpointX() ? 'sm' : width < largeBreakpointX() ? 'md' : 'lg',
+      bpy = height < smallBreakpointY() ? 'sm' : height < largeBreakpointY() ? 'md' : 'lg';
 
     this.$store.breakpointX.set(bpx);
     this.$store.breakpointY.set(bpy);
