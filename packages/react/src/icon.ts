@@ -7,7 +7,7 @@ import {
   type SVGProps,
 } from 'react';
 
-export { type IconType } from 'media-icons';
+export type { IconType } from 'media-icons';
 
 export interface IconProps
   extends PropsWithoutRef<SVGProps<SVGSVGElement>>,
@@ -20,11 +20,11 @@ export interface IconProps
    */
   size?: number;
   /**
-   * @docs {@link https://www.vidstack.io/docs/player/styling/foundation#slots}
+   * @docs {@link https://www.vidstack.io/docs/player/core-concepts/styling#slots}
    */
   slot?: string;
   /**
-   * @docs {@link https://www.vidstack.io/docs/player/styling/foundation#parts}
+   * @docs {@link https://www.vidstack.io/docs/player/core-concepts/styling#parts}
    */
   part?: string;
   /* @internal */

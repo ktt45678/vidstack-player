@@ -4,10 +4,10 @@ import { ComponentController, ComponentInstance } from 'maverick.js/element';
 import { appendTriggerEvent, listenEvent } from 'maverick.js/std';
 
 import { LIST_RESET } from '../../../foundation/list/symbols';
+import type { PlayerAPI } from '../../player';
 import type { MediaContext } from '../api/context';
 import * as ME from '../api/events';
 import { softResetMediaStore, type MediaStore } from '../api/store';
-import type { PlayerAPI } from '../player';
 import type {
   VideoQualityAddEvent,
   VideoQualityChangeEvent,
@@ -431,7 +431,6 @@ export class MediaStateManager extends ComponentController<PlayerAPI> {
     waiting.set(false);
 
     for (const track of this._media.textTracks) {
-      if (track.mode === 'disabled') continue;
       track[TEXT_TRACK_UPDATE_ACTIVE_CUES](detail.currentTime, event);
     }
   }

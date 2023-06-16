@@ -16,7 +16,6 @@ export class NativeTextRenderer implements TextRenderer {
 
   attach(video: HTMLVideoElement) {
     this._video = video;
-    if (!video.crossOrigin) video.crossOrigin = 'anonymous';
     video.textTracks.onchange = this._onChange.bind(this);
   }
 
@@ -32,15 +31,18 @@ export class NativeTextRenderer implements TextRenderer {
   }
 
   changeTrack(track: VdsTextTrack | null): void {
-    const prev = this._track?.[TEXT_TRACK_NATIVE],
-      current = track?.[TEXT_TRACK_NATIVE];
-    if (prev && this._track !== track) prev.track.mode = 'disabled';
-    if (current) current.track.mode = 'showing';
+    const current = track?.[TEXT_TRACK_NATIVE];
+
+    if (current && current.track.mode !== 'showing') {
+      current.track.mode = 'showing';
+    }
+
     this._track = track;
   }
 
   setDisplay(display: boolean) {
     this._display = display;
+    this._onChange();
   }
 
   detach() {
@@ -54,22 +56,33 @@ export class NativeTextRenderer implements TextRenderer {
   private _attachTrack(track: VdsTextTrack): void {
     if (!this._video) return;
     const el = (track[TEXT_TRACK_NATIVE] ??= this._createTrackElement(track));
-    if (el instanceof HTMLElement) this._video.append(el);
+    if (el instanceof HTMLElement) {
+      this._video.append(el);
+      el.track.mode = el.default ? 'showing' : 'hidden';
+    }
   }
 
   private _createTrackElement(track: VdsTextTrack): HTMLTrackElement {
-    const el = document.createElement('track');
-    el.src = 'https://cdn.jsdelivr.net/npm/vidstack/empty.vtt';
+    const el = document.createElement('track'),
+      isDefault = track.default || track.mode === 'showing',
+      isSupported = track.src && track.type === 'vtt';
+
     el.id = track.id;
+    el.src = isSupported ? track.src! : 'https://cdn.jsdelivr.net/npm/vidstack@0.6.12/empty.vtt';
     el.label = track.label;
     el.kind = track.kind;
-    el.default = track.default;
+    el.default = isDefault;
     track.language && (el.srclang = track.language);
+
+    if (isDefault && !isSupported) {
+      this._copyCues(track, el.track);
+    }
+
     return el;
   }
 
   private _copyCues(track: VdsTextTrack, native: Partial<TextTrack>) {
-    if (native.cues?.length) return;
+    if ((track.src && track.type === 'vtt') || native.cues?.length) return;
     for (const cue of track.cues) native.addCue!(cue as any);
   }
 
@@ -83,12 +96,9 @@ export class NativeTextRenderer implements TextRenderer {
         continue;
       }
 
-      if (nativeTrack.mode === 'showing') {
-        this._copyCues(track, nativeTrack);
-        track.setMode('showing', event);
-      } else if (track.mode === 'showing') {
-        track.setMode('disabled', event);
-      }
+      const isShowing = nativeTrack.mode === 'showing';
+      if (isShowing) this._copyCues(track, nativeTrack);
+      track.setMode(isShowing ? 'showing' : 'disabled', event);
     }
   }
 }
