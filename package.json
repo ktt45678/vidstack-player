@@ -1,6 +1,6 @@
 {
   "name": "@ktt45678/vidstack-workspace",
-  "version": "1.8.3",
+  "version": "1.8.3-F1",
   "private": true,
   "type": "module",
   "workspaces": [
