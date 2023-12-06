@@ -3,7 +3,7 @@ const createPlugin = require('tailwindcss/plugin');
 const mediaAttributes = [
   'autoplay',
   'autoplay-error',
-  'duration',
+  'buffering',
   'captions',
   'can-fullscreen',
   'can-pip',
@@ -13,7 +13,7 @@ const mediaAttributes = [
   'ended',
   'error',
   'fullscreen',
-  'user-idle',
+  'controls',
   'loop',
   'live',
   'live-edge',
@@ -22,39 +22,22 @@ const mediaAttributes = [
   'pip',
   'playing',
   'playsinline',
+  'preview',
   'seeking',
   'started',
   'waiting',
+  'ios-controls',
 ];
 
 module.exports = createPlugin.withOptions(function (options) {
-  const prefixOpt = options?.prefix ?? options?.mediaPrefix;
-  const prefix = prefixOpt ? `${prefixOpt}-` : '';
+  const selector = options?.selector ?? (options?.webComponents ? 'media-player' : 'div'),
+    prefixOpt = options?.prefix ?? options?.mediaPrefix,
+    prefix = prefixOpt ? `${prefixOpt}-` : 'media-';
 
-  return function ({ addBase, addVariant }) {
+  return function ({ addVariant }) {
     mediaAttributes.forEach((name) => {
-      addVariant(`${prefix}${name}`, `media-player[data-${name}] &`);
-      addVariant(`not-${prefix}${name}`, `media-player:not([data-${name}]) &`);
+      addVariant(`${prefix}${name}`, `${selector}[data-${name}] &`);
+      addVariant(`not-${prefix}${name}`, `${selector}:not([data-${name}]) &`);
     });
-
-    // buffering
-    addVariant(`${prefix}buffering`, [
-      `media-player:not([data-can-play]) &`,
-      `media-player[data-waiting] &`,
-    ]);
-    addVariant(`not-${prefix}buffering`, [`media-player[data-can-play]:not([data-waiting]) &`]);
-
-    // can-control
-    addBase({
-      [`media-player[data-ios-controls] *[class*="${prefix}can-control"]`]: {
-        display: 'none !important',
-      },
-    });
-    addVariant(`${prefix}can-control`, [`media-player[data-can-play]:not([data-user-idle]) &`]);
-    addVariant(`not-${prefix}can-control`, [
-      `media-player[data-ios-controls] &`,
-      `media-player[data-user-idle] &`,
-      `media-player:not([data-can-play]) &`,
-    ]);
   };
 });

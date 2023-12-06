@@ -1,4 +1,5 @@
-import { ComponentController } from 'maverick.js/element';
+import { onDispose, ViewController } from 'maverick.js';
+import type { MaverickElement } from 'maverick.js/element';
 import { isString, isUndefined } from 'maverick.js/std';
 
 import { getLogColor, saveLogColor } from './colors';
@@ -6,7 +7,7 @@ import { isGroupedLog, type GroupedLog } from './grouped-log';
 import { LogLevelColor, LogLevelValue, type LogLevel } from './log-level';
 import { ms } from './ms';
 
-export class LogPrinter extends ComponentController {
+export class LogPrinter extends ViewController {
   private _level: LogLevel = __DEV__ ? 'warn' : 'silent';
   private _lastLogged: number | undefined;
 
@@ -25,9 +26,15 @@ export class LogPrinter extends ComponentController {
     this.listen('vds-log', (event) => {
       event.stopPropagation();
 
-      const eventTargetName = (
-        (event as { path?: Element[] }).path?.[0] ?? (event.target as Element)
-      ).tagName.toLowerCase();
+      const element =
+          (event as { path?: Element[] }).path?.[0] ??
+          (event.target instanceof ViewController ? event.target.el : (event.target as Element)),
+        eventTargetName =
+          (element as MaverickElement as any)?.$$COMPONENT_NAME
+            ?.replace(/^_/, '')
+            .replace(/Instance$/, '') ??
+          element?.tagName.toLowerCase() ??
+          'unknown';
 
       const { level = 'warn', data } = event.detail ?? {};
 
@@ -41,8 +48,8 @@ export class LogPrinter extends ComponentController {
         data?.length === 1 && isGroupedLog(data[0])
           ? data[0].title
           : isString(data?.[0])
-          ? data![0]
-          : '';
+            ? data![0]
+            : '';
 
       console.groupCollapsed(
         `%c${level.toUpperCase()}%c ${eventTargetName}%c ${hint.slice(0, 50)}${
@@ -54,6 +61,7 @@ export class LogPrinter extends ComponentController {
       );
 
       if (data?.length === 1 && isGroupedLog(data[0])) {
+        if (element) data[0].logs.unshift({ label: 'Element', data: [element] });
         printGroup(level, data![0]);
       } else if (data) {
         print(level, ...data);
@@ -65,9 +73,9 @@ export class LogPrinter extends ComponentController {
       console.groupEnd();
     });
 
-    return () => {
+    onDispose(() => {
       this._lastLogged = undefined;
-    };
+    });
   }
 
   private _printTimeDiff() {
@@ -97,17 +105,15 @@ function printStackTrace() {
 }
 
 function printGroup(level: LogLevel, groupedLog: GroupedLog) {
-  console.groupCollapsed(groupedLog.title);
-
   for (const log of groupedLog.logs) {
     if (isGroupedLog(log)) {
+      console.groupCollapsed(groupedLog.title);
       printGroup(level, log);
+      console.groupEnd();
     } else if ('label' in log && !isUndefined(log.label)) {
       labelledPrint(log.label, ...log.data);
     } else {
       print(level, ...log.data);
     }
   }
-
-  console.groupEnd();
 }

@@ -2,18 +2,24 @@
   "$schema": "https://turborepo.org/schema.json",
   "pipeline": {
     "analyze": {
-      "outputs": ["elements.json", "vscode.html-data.json"]
+      "outputs": ["analyze.json", "vscode.html-data.json", "vue.d.ts", "svelte.d.ts", "solid.d.ts"]
     },
     "build": {
-      "dependsOn": ["^analyze", "^build", "clean"],
-      "outputs": ["dist/**", ".vercel/**", "styles/defaults.css", "styles/community-skin/**"]
+      "dependsOn": ["clean", "^build"],
+      "outputs": ["cdn/**", "dist/**", "player/**", "tailwind.*"]
     },
     "clean": {
       "cache": false
     },
     "types": {
-      "dependsOn": ["^types", "clean"],
-      "outputs": ["dist/**"]
+      "dependsOn": ["clean"],
+      "outputs": [
+        "*.d.ts",
+        "types/**",
+        "dist/types/**",
+        "player/**/*.d.ts",
+        "tsconfig.build.tsbuildinfo"
+      ]
     },
     "format": {
       "inputs": ["src/**"]

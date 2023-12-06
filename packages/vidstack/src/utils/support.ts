@@ -1,8 +1,8 @@
 import { isFunction, isUndefined, waitTimeout } from 'maverick.js/std';
 
-export const UA = __SERVER__ ? '' : navigator?.userAgent.toLowerCase();
+export const UA = __SERVER__ ? '' : navigator?.userAgent.toLowerCase() || '';
 export const IS_IOS = !__SERVER__ && /iphone|ipad|ipod|ios|crios|fxios/i.test(UA);
-export const IS_IPHONE = !__SERVER__ && /(iphone|ipod)/gi.test(navigator?.platform);
+export const IS_IPHONE = !__SERVER__ && /(iphone|ipod)/gi.test(navigator?.platform || '');
 export const IS_CHROME = !__SERVER__ && !!window.chrome;
 export const IS_IOS_CHROME = !__SERVER__ && /crios/i.test(UA);
 export const IS_SAFARI = !__SERVER__ && (!!window.safari || IS_IOS);
@@ -27,12 +27,7 @@ export function canObserveIntersection(): boolean {
  * @see {@link https://developer.mozilla.org/en-US/docs/Web/API/Screen/orientation}
  */
 export function canOrientScreen(): boolean {
-  return (
-    !__SERVER__ &&
-    !isUndefined(screen.orientation) &&
-    isFunction(screen.orientation.lock) &&
-    isFunction(screen.orientation.unlock)
-  );
+  return canRotateScreen() && isFunction(screen.orientation.unlock);
 }
 
 /**
@@ -44,7 +39,7 @@ export function canRotateScreen(): boolean {
   return (
     !__SERVER__ &&
     !isUndefined(window.screen.orientation) &&
-    !isUndefined(window.screen.orientation.lock)
+    !isUndefined((window.screen.orientation as any).lock)
   );
 }
 
@@ -84,10 +79,11 @@ export function canUsePictureInPicture(video: HTMLVideoElement): boolean {
  *
  * @see {@link https://developer.apple.com/documentation/webkitjs/htmlvideoelement/1631913-webkitpresentationmode}
  */
-export function canUseVideoPresentation(video: HTMLVideoElement): boolean {
+export function canUseVideoPresentation(video: HTMLVideoElement | null): boolean {
   if (__SERVER__) return false;
   return (
-    isFunction(video.webkitSupportsPresentationMode) && isFunction(video.webkitSetPresentationMode)
+    isFunction(video?.webkitSupportsPresentationMode) &&
+    isFunction(video?.webkitSetPresentationMode)
   );
 }
 

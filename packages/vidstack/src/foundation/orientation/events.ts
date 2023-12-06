@@ -2,10 +2,6 @@ import type { DOMEvent } from 'maverick.js/std';
 
 import type { ScreenOrientationLockType, ScreenOrientationType } from './types';
 
-export interface ScreenOrientationAPI {
-  events: ScreenOrientationEvents;
-}
-
 export interface ScreenOrientationEvents {
   'orientation-change': ScreenOrientationChangeEvent;
 }
@@ -17,6 +13,8 @@ export interface ScreenOrientationChangeEventDetail {
 
 /**
  * Fired when the current screen orientation changes.
+ *
+ * @detail orientation
  */
 export interface ScreenOrientationChangeEvent
   extends DOMEvent<ScreenOrientationChangeEventDetail> {}

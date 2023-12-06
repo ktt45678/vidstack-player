@@ -2,8 +2,11 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "declaration": true,
-    "declarationDir": "dist/types",
-    "paths": {}
+    "declarationDir": "types",
+    "paths": {
+      "vidstack": ["../vidstack/src"]
+    }
   },
-  "exclude": ["src/**/*.test.ts"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "../vidstack/src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts", "../vidstack/src/**/*.test.ts"]
 }

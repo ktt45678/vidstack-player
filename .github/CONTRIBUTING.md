@@ -32,7 +32,7 @@ make pull requests from the forked branch.
 
 ```bash
 # Add the original repository as a "remote" called "upstream".
-$: git remote add upstream git@github.com:vidstack/vidstack.git
+$: git remote add upstream git@github.com:vidstack/player.git
 
 # Fetch the git information from the remote.
 $: git fetch upstream
@@ -41,7 +41,7 @@ $: git fetch upstream
 $: git branch --set-upstream-to=upstream/main main
 
 # Run this when we want to update our version of main.
-$: git pull
+$: git pull upstream --rebase
 ```
 
 ### Node
@@ -59,7 +59,7 @@ $: pnpm i
 $: pnpm -F vidstack install {package}
 
 # Update a dependency for a single package.
-$: pnpm -F vidstack up {package}
+$: pnpm -F react up {package}
 
 # Update a dependency for all packages.
 $: pnpm up {package}@{version} -r
@@ -71,11 +71,13 @@ $: pnpm up {package}@{version} -r
 # Build all packages (turbo)
 $: pnpm build
 
-# Build single package (turbo) - see root `package.json` for more
+# Build single package (turbo)
 $: pnpm build:vidstack
+$: pnpm build:react
 
-# Build and watch single package
+# Build and watch single package.
 $: pnpm -F vidstack dev
+$: pnpm -F @vidstack/react dev
 ```
 
 ### Sandbox
@@ -85,8 +87,9 @@ browser. The sandbox directory is Git-ignored so you can safely do whatever you 
 it.
 
 ```bash
-# Play with `vidstack` package in your browser.
+# Play with package in your browser.
 $: pnpm -F vidstack sandbox
+$: pnpm -F @vidstack/react sandbox
 ```
 
 After running any of the commands above, you can find the sandbox directory at `packages/*/sandbox`.
@@ -110,6 +113,5 @@ contribution is appreciated more then you can imagine, and even a failed PR can 
 [semantic-commit-style]: https://gist.github.com/joshbuchea/6f47e86d2510bce28f8e7f42ae84c716
 [turborepo]: https://turborepo.org
 [typescript]: https://www.typescriptlang.org
-[vidstack-gh]: https://github.com/vidstack/vidstack
-[vitest]: https://vitest.dev
+[vidstack-gh]: https://github.com/vidstack/player
 [web-components]: https://developer.mozilla.org/en-US/docs/Web/Web_Components

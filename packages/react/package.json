@@ -1,77 +1,133 @@
 {
   "name": "@ktt45678/vidstack-react",
-  "version": "0.6.13-F1",
-  "description": "Build awesome media experiences on the web.",
+  "version": "1.8.3",
+  "description": "UI component library for building high-quality, accessible video and audio experiences on the web.",
   "license": "MIT",
   "type": "module",
-  "types": "dist/types/index.d.ts",
-  "module": "dist/prod.js",
+  "types": "index.d.ts",
   "sideEffects": false,
   "engines": {
-    "node": ">=16"
+    "node": ">=18"
   },
   "files": [
     "*.d.ts",
-    "dist/"
+    "dist/",
+    "player/",
+    "tailwind.*",
+    "analyze.json"
   ],
   "scripts": {
-    "dev": "pnpm clean && rollup -c -w & pnpm run types -w",
-    "build": "node .scripts/prebuild.js && rollup -c",
-    "types": "tsc -p tsconfig.build.json",
-    "clean": "rimraf dist",
-    "format": "prettier src --write --loglevel warn"
+    "analyze": "maverick analyze \"src/**/*.tsx\" --framework react",
+    "dev": "pnpm clean && pnpm build:icons && pnpm build:types && pnpm watch",
+    "build": "pnpm build:icons && rollup -c",
+    "build:icons": "node .scripts/build-icons.js",
+    "build:types": "tsc -p tsconfig.build.json",
+    "sandbox": "node ../../.scripts/sandbox.js",
+    "sandbox:build": "vite build sandbox",
+    "types": "pnpm build:icons && pnpm build:types && rollup -c --config-types",
+    "clean": "rimraf dist player",
+    "format": "prettier src --write --loglevel warn",
+    "watch": "pnpm watch:types & rollup -c -w",
+    "watch:types": "pnpm run build:types -w"
   },
   "peerDependencies": {
     "@types/react": "^18.0.0",
-    "maverick.js": "0.37.0",
-    "react": "^18.0.0",
-    "vidstack": "workspace:*"
+    "react": "^18.0.0"
+  },
+  "dependencies": {
+    "media-captions": "^1.0.1"
   },
   "devDependencies": {
+    "@maverick-js/cli": "0.40.12",
+    "@rollup/plugin-node-resolve": "^15.2.0",
+    "@types/fs-extra": "^11.0.1",
     "@types/react": "^18.0.0",
-    "esbuild": "^0.16.0",
-    "maverick.js": "0.37.0",
-    "media-icons": "0.10.0",
+    "@vitejs/plugin-react": "^4.2.0",
+    "esbuild": "^0.19.4",
+    "fs-extra": "^11.0.0",
+    "maverick.js": "0.40.12",
+    "media-icons": "^1.0.0",
     "react": "^18.0.0",
+    "react-dom": "^18.0.0",
     "rimraf": "^3.0.0",
-    "rollup": "^3.25.1",
-    "rollup-plugin-esbuild": "^5.0.0",
-    "typescript": "^5.0.0",
-    "vidstack": "workspace:*"
+    "rollup": "^4.0.0",
+    "rollup-plugin-dts": "^6.0.0",
+    "rollup-plugin-esbuild": "^6.1.0",
+    "typescript": "^5.3.0",
+    "vidstack": "workspace:*",
+    "vite": "^5.0.0"
   },
   "contributors": [
     "Rahim Alwer <rahim.alwer@gmail.com>"
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/vidstack/vidstack.git",
+    "url": "https://github.com/vidstack/player.git",
     "directory": "packages/react"
   },
   "bugs": {
-    "url": "https://github.com/vidstack/vidstack/issues"
+    "url": "https://github.com/vidstack/player/issues"
   },
   "exports": {
     ".": {
-      "types": "./dist/types/index.d.ts",
-      "node": "./dist/server/index.js",
-      "deno": "./dist/server/index.js",
-      "development": "./dist/dev/index.js",
-      "default": "./dist/prod/index.js"
+      "types": "./index.d.ts",
+      "development": "./dist/dev/vidstack.js",
+      "default": "./dist/prod/vidstack.js"
     },
     "./icons": {
-      "types": "./dist/types/icons.d.ts",
-      "node": "./dist/server/icons.js",
-      "deno": "./dist/server/icons.js",
-      "development": "./dist/dev/icons.js",
-      "default": "./dist/prod/icons.js"
+      "types": "./icons.d.ts",
+      "default": "./dist/prod/vidstack-icons.js"
+    },
+    "./player/layouts/default": {
+      "types": "./player/layouts/default.d.ts",
+      "development": "./dist/dev/player/vidstack-default-layout.js",
+      "default": "./dist/prod/player/vidstack-default-layout.js"
+    },
+    "./player/styles/*": "./player/styles/*",
+    "./dist/types/*": "./dist/types/*",
+    "./package.json": "./package.json",
+    "./tailwind.cjs": {
+      "types": "./tailwind.d.cts",
+      "default": "./tailwind.cjs"
+    },
+    "./analyze.json": {
+      "types": "./analyze.json.d.ts",
+      "default": "./analyze.json"
     }
   },
   "publishConfig": {
     "access": "public"
   },
   "keywords": [
-    "vidstack",
+    "accessible",
+    "analytics",
+    "audio",
+    "customizable",
+    "dailymotion",
+    "elements",
+    "extensible",
+    "file",
+    "framework-agnostic",
+    "headless",
+    "hls",
+    "html5",
+    "jwplayer",
+    "media",
+    "plyr",
     "player",
-    "react"
+    "react",
+    "spec-compliant",
+    "universal",
+    "uploader",
+    "vds",
+    "video",
+    "videojs",
+    "vidstack",
+    "vime",
+    "vimeo",
+    "web-component",
+    "tailwind",
+    "universal",
+    "youtube"
   ]
 }

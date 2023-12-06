@@ -1,15 +1,12 @@
-import { peek, signal } from 'maverick.js';
-import { ComponentController } from 'maverick.js/element';
-import { isNumber, listenEvent } from 'maverick.js/std';
+import { onDispose, peek, signal, ViewController } from 'maverick.js';
+import { listenEvent } from 'maverick.js/std';
 
 import { canOrientScreen } from '../../utils/support';
-import type { ScreenOrientationAPI } from './events';
+import type { ScreenOrientationEvents } from './events';
 import type { ScreenOrientationLockType, ScreenOrientationType } from './types';
 
-const CAN_USE_SCREEN_ORIENTATION_API = canOrientScreen();
-
-export class ScreenOrientationController extends ComponentController<ScreenOrientationAPI> {
-  private _type = signal(getScreenOrientation());
+export class ScreenOrientationController extends ViewController<{}, {}, ScreenOrientationEvents> {
+  private _type = signal(this._getScreenOrientation());
   private _locked = signal(false);
   private _currentLock: ScreenOrientationLockType | undefined;
 
@@ -56,26 +53,33 @@ export class ScreenOrientationController extends ComponentController<ScreenOrien
   /**
    * Whether the native Screen Orientation API is available.
    */
-  get supported(): boolean {
-    return CAN_USE_SCREEN_ORIENTATION_API;
+  static readonly supported = canOrientScreen();
+
+  /**
+   * Whether the native Screen Orientation API is available.
+   */
+  get supported() {
+    return ScreenOrientationController.supported;
   }
 
   protected override onConnect() {
-    if (CAN_USE_SCREEN_ORIENTATION_API) {
+    if (this.supported) {
       listenEvent(screen.orientation, 'change', this._onOrientationChange.bind(this));
     } else {
       const query = window.matchMedia('(orientation: landscape)');
       query.onchange = this._onOrientationChange.bind(this);
-      return () => (query.onchange = null);
+      onDispose(() => (query.onchange = null));
     }
+
+    onDispose(this._onDisconnect.bind(this));
   }
 
-  protected override async onDisconnect() {
-    if (CAN_USE_SCREEN_ORIENTATION_API && this._locked()) await this.unlock();
+  protected async _onDisconnect() {
+    if (this.supported && this._locked()) await this.unlock();
   }
 
   protected _onOrientationChange(event: Event) {
-    this._type.set(getScreenOrientation()!);
+    this._type.set(this._getScreenOrientation()!);
     this.dispatch('orientation-change', {
       detail: {
         orientation: peek(this._type),
@@ -96,8 +100,8 @@ export class ScreenOrientationController extends ComponentController<ScreenOrien
    */
   async lock(lockType: ScreenOrientationLockType): Promise<void> {
     if (peek(this._locked) || this._currentLock === lockType) return;
-    assertScreenOrientationAPI();
-    await screen.orientation.lock(lockType);
+    this._assertScreenOrientationAPI();
+    await (screen.orientation as any).lock(lockType);
     this._locked.set(true);
     this._currentLock = lockType;
   }
@@ -112,24 +116,24 @@ export class ScreenOrientationController extends ComponentController<ScreenOrien
    */
   async unlock(): Promise<void> {
     if (!peek(this._locked)) return;
-    assertScreenOrientationAPI();
+    this._assertScreenOrientationAPI();
     this._currentLock = undefined;
     await screen.orientation.unlock();
     this._locked.set(false);
   }
-}
 
-function assertScreenOrientationAPI() {
-  if (CAN_USE_SCREEN_ORIENTATION_API) return;
-  throw Error(
-    __DEV__
-      ? '[vidstack] screen orientation API is not available'
-      : '[vidstack] no orientation API',
-  );
-}
+  private _assertScreenOrientationAPI() {
+    if (this.supported) return;
+    throw Error(
+      __DEV__
+        ? '[vidstack] screen orientation API is not available'
+        : '[vidstack] no orientation API',
+    );
+  }
 
-function getScreenOrientation(): ScreenOrientationType {
-  if (__SERVER__) return 'portrait-primary';
-  if (CAN_USE_SCREEN_ORIENTATION_API) return window.screen!.orientation!.type;
-  return window.innerWidth >= window.innerHeight ? 'landscape-primary' : 'portrait-primary';
+  private _getScreenOrientation(): ScreenOrientationType {
+    if (__SERVER__) return 'portrait-primary';
+    if (this.supported) return window.screen!.orientation!.type;
+    return window.innerWidth >= window.innerHeight ? 'landscape-primary' : 'portrait-primary';
+  }
 }
