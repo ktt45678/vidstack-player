@@ -3,7 +3,7 @@ import type { ScreenOrientationLockType } from '../../foundation/orientation/typ
 import { MEDIA_KEY_SHORTCUTS } from '../keyboard/controller';
 import type { MediaKeyShortcuts, MediaKeyTarget } from '../keyboard/types';
 import type { MediaState } from './player-state';
-import type { MediaLoadingStrategy, MediaResource } from './types';
+import type { MediaLoadingStrategy, MediaResource, MediaSourceProvider } from './types';
 
 export const mediaPlayerProps: MediaPlayerProps = {
   autoplay: false,
@@ -40,8 +40,8 @@ export interface MediaStateAccessors
 
 export type MediaSrc =
   | MediaResource
-  | { src: MediaResource; type?: string }
-  | { src: MediaResource; type?: string }[];
+  | { src: MediaResource; type?: string; provider?: MediaSourceProvider }
+  | { src: MediaResource; type?: string; provider?: MediaSourceProvider }[];
 
 export interface MediaPlayerProps
   // Prefer picking off the `MediaStore` type to ensure docs are kept in-sync.

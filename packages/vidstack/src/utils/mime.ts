@@ -47,8 +47,12 @@ export const HLS_VIDEO_TYPES = new Set<string>([
   'application/mpegurl',
 ]);
 
-export function isHLSSrc({ src, type }: MediaSrc): boolean {
-  return (isString(src) && HLS_VIDEO_EXTENSIONS.test(src)) || HLS_VIDEO_TYPES.has(type);
+export function isHLSSrc({ src, type, provider }: MediaSrc): boolean {
+  return (
+    provider === 'hls' ||
+    (isString(src) && HLS_VIDEO_EXTENSIONS.test(src)) ||
+    HLS_VIDEO_TYPES.has(type)
+  );
 }
 
 export function isMediaStream(src: unknown): src is MediaStream {

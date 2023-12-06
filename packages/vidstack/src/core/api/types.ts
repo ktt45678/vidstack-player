@@ -57,4 +57,7 @@ export type MediaResource = string | MediaStream | MediaSource | Blob;
 export type MediaSrc = {
   src: MediaResource;
   type: string;
+  provider?: MediaSourceProvider;
 };
+
+export type MediaSourceProvider = 'video' | 'audio' | 'youtube' | 'vimeo' | 'hls';
