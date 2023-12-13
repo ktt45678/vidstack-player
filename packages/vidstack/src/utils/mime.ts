@@ -29,6 +29,19 @@ export const VIDEO_TYPES = new Set<string>([
   'video/mpeg',
 ]);
 
+export const DASH_VIDEO_EXTENSIONS = /\.(mpd)($|\?)/i;
+
+export const DASH_VIDEO_TYPES = new Set<string>([
+  // Dash xml
+  'application/dash+xml',
+  // Common xml
+  'application/xml',
+  // Included for completeness
+  'video/dash+xml',
+  'video/xml',
+  'video/dash',
+]);
+
 export const HLS_VIDEO_EXTENSIONS = /\.(m3u8)($|\?)/i;
 
 // Taken from video.js
@@ -46,6 +59,14 @@ export const HLS_VIDEO_TYPES = new Set<string>([
   'video/mpegurl',
   'application/mpegurl',
 ]);
+
+export function isDASHSrc({ src, type, provider }: MediaSrc): boolean {
+  return (
+    provider === 'dash' ||
+    (isString(src) && DASH_VIDEO_EXTENSIONS.test(src)) ||
+    DASH_VIDEO_TYPES.has(type)
+  );
+}
 
 export function isHLSSrc({ src, type, provider }: MediaSrc): boolean {
   return (

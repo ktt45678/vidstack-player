@@ -60,4 +60,4 @@ export type MediaSrc = {
   provider?: MediaSourceProvider;
 };
 
-export type MediaSourceProvider = 'video' | 'audio' | 'youtube' | 'vimeo' | 'hls';
+export type MediaSourceProvider = 'video' | 'audio' | 'youtube' | 'vimeo' | 'dash' | 'hls';

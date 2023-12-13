@@ -18,6 +18,7 @@ import {
   YouTubeProviderLoader,
   type MediaProviderLoader,
 } from '../../providers';
+import { DASHProviderLoader } from '../../providers/dash/loader';
 import { resolveStreamTypeFromHLSManifest } from '../../utils/hls';
 import { isHLSSrc } from '../../utils/mime';
 import { getRequestCredentials, preconnect } from '../../utils/network';
@@ -42,6 +43,7 @@ export class SourceSelection {
     private _loader: WriteSignal<MediaProviderLoader | null>,
   ) {
     const HLS_LOADER = new HLSProviderLoader(),
+      DASH_LOADER = new DASHProviderLoader(),
       VIDEO_LOADER = new VideoProviderLoader(),
       AUDIO_LOADER = new AudioProviderLoader(),
       YOUTUBE_LOADER = new YouTubeProviderLoader(),
@@ -50,8 +52,8 @@ export class SourceSelection {
 
     this._loaders = computed<MediaProviderLoader[]>(() => {
       return _media.$props.preferNativeHLS()
-        ? [VIDEO_LOADER, AUDIO_LOADER, HLS_LOADER, ...EMBED_LOADERS]
-        : [HLS_LOADER, VIDEO_LOADER, AUDIO_LOADER, ...EMBED_LOADERS];
+        ? [VIDEO_LOADER, AUDIO_LOADER, DASH_LOADER, HLS_LOADER, ...EMBED_LOADERS]
+        : [DASH_LOADER, HLS_LOADER, VIDEO_LOADER, AUDIO_LOADER, ...EMBED_LOADERS];
     });
 
     const { $state } = _media;

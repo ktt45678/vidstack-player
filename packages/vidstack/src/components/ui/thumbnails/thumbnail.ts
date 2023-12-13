@@ -29,6 +29,7 @@ export class Thumbnail extends Component<ThumbnailProps, ThumbnailState> {
   static props: ThumbnailProps = {
     src: '',
     time: 0,
+    cdnUrl: null,
   };
 
   static state = new State<ThumbnailState>({
@@ -151,7 +152,15 @@ export class Thumbnail extends Component<ThumbnailProps, ThumbnailState> {
   }
 
   private _resolveThumbnailSrc(src: string, baseURL: string) {
-    return /^https?:/.test(src) ? src : new URL(src, baseURL).href;
+    let splitBaseURL = '';
+    if (!src.startsWith('/') && !src.startsWith('http://') && !src.startsWith('https://'))
+      splitBaseURL = baseURL.substring(0, baseURL.lastIndexOf('/') + 1);
+
+    const cdnURL = this._getCDNUrl();
+    const srcURL = splitBaseURL + src;
+
+    if (cdnURL) return cdnURL.replace('{url}', encodeURIComponent(srcURL));
+    return srcURL;
   }
 
   private _resolveThumbnailCoords(coords: string) {
@@ -204,6 +213,10 @@ export class Thumbnail extends Component<ThumbnailProps, ThumbnailState> {
     for (const reset of this._styleResets) reset();
     this._styleResets = [];
   }
+
+  protected _getCDNUrl() {
+    return this.$props.cdnUrl();
+  }
 }
 
 export interface ThumbnailProps {
@@ -216,6 +229,10 @@ export interface ThumbnailProps {
    * Finds, loads, and displays the first active thumbnail cue that's start/end times are in range.
    */
   time: number;
+  /**
+   * Optional cdn url to apply image optimizations
+   */
+  cdnUrl: string | null;
 }
 
 export interface ThumbnailCoords {

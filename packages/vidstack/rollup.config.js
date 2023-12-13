@@ -12,7 +12,7 @@ const MODE_WATCH = process.argv.includes('-w'),
   MODE_TYPES = process.argv.includes('--config-types'),
   MODE_CDN = process.argv.includes('--config-cdn');
 
-const NPM_EXTERNAL_PACKAGES = ['hls.js', 'media-captions', 'media-icons'],
+const NPM_EXTERNAL_PACKAGES = ['dashjs', 'hls.js', 'media-captions', 'media-icons', 'jassub'],
   CDN_EXTERNAL_PACKAGES = ['media-captions', 'media-icons'],
   NPM_BUNDLES = [define({ type: 'server' }), define({ type: 'dev' }), define({ type: 'prod' })],
   CDN_BUNDLES = [defineCDN({ dev: true }), defineCDN(), defineCDN({ layouts: true })],
