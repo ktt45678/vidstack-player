@@ -25,7 +25,6 @@ export class TextTrack extends EventsTarget<TextTrackEvents> {
   }
 
   readonly src?: string;
-  readonly content?: string;
   readonly type?: 'json' | CaptionsFileFormat | CaptionsParserFactory;
   readonly encoding?: string;
 
@@ -34,6 +33,11 @@ export class TextTrack extends EventsTarget<TextTrackEvents> {
   readonly language = '';
   readonly kind!: TextTrackKind;
   readonly default = false;
+
+  content?: string;
+  mimeType?: string;
+  contentLoaded: boolean = false;
+  subtitleLoader?: (track: TextTrack) => Promise<string | null> | null;
 
   private _canLoad = false;
   private _currentTime = 0;
@@ -114,6 +118,26 @@ export class TextTrack extends EventsTarget<TextTrackEvents> {
             this._readyState();
           });
         }
+      });
+    } else if (init.src && init.subtitleLoader && (init.type === 'srt' || init.type === 'vtt')) {
+      Promise.resolve(init.subtitleLoader(this)).then((content) => {
+        if (!content) {
+          this._errorState('Subtitle loaded error');
+          return;
+        }
+        this.content = content;
+        this.contentLoaded = true;
+        import('media-captions').then(({ parseText, VTTCue, VTTRegion }) => {
+          if (init.type === 'json') {
+            this._parseJSON(content, VTTCue, VTTRegion);
+          } else {
+            parseText(content, { type: init.type }).then(({ cues, regions }) => {
+              this._cues = cues;
+              this._regions = regions;
+              this._readyState();
+            });
+          }
+        });
       });
     } else if (!init.src) this[TextTrackSymbol._readyState] = 2;
 
@@ -342,6 +366,10 @@ export interface TextTrackInit {
    * @see {@link https://datatracker.ietf.org/doc/html/rfc5646}
    */
   readonly language?: string;
+  /** Mime type of the subtitle file */
+  readonly mimeType?: string;
+  /** Loading function of the subtitle file */
+  subtitleLoader?: (track: TextTrack) => Promise<string | null> | null;
 }
 
 export interface TextTrackEvents {

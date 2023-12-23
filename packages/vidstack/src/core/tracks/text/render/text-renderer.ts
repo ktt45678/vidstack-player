@@ -84,11 +84,24 @@ export class TextRenderers {
 
     const currentTrack = this._textTracks.selected;
 
+    if (currentTrack && currentTrack.subtitleLoader && !currentTrack.contentLoaded) {
+      Promise.resolve(currentTrack.subtitleLoader(currentTrack)).then((content) => {
+        if (content) currentTrack.content = content;
+        currentTrack.contentLoaded = true;
+        this._setCurrentTrack(currentTrack);
+      });
+      return;
+    }
+
+    this._setCurrentTrack(currentTrack);
+  }
+
+  private _setCurrentTrack(currentTrack: TextTrack | null) {
     // We identify text tracks that were embedded in HLS playlists and loaded natively (e.g., iOS
     // Safari) because we can't toggle mode to hidden and still get cue updates for some reason.
     // See `native-hls-text-tracks.ts` for discovery.
     if (this._nativeDisplay || currentTrack?.[TextTrackSymbol._nativeHLS]) {
-      this._customRenderer?.changeTrack(null);
+      this._customRenderer?.changeTrack(null, this._video!);
       this._nativeRenderer?.setDisplay(true);
       this._nativeRenderer?.changeTrack(currentTrack);
       return;
@@ -97,8 +110,9 @@ export class TextRenderers {
     this._nativeRenderer?.setDisplay(false);
     this._nativeRenderer?.changeTrack(null);
 
+    this._customRenderer?.changeTrack(null, this._video!);
+
     if (!currentTrack) {
-      this._customRenderer?.changeTrack(null);
       return;
     }
 
@@ -108,11 +122,11 @@ export class TextRenderers {
 
     if (this._customRenderer !== customRenderer) {
       this._customRenderer?.detach();
-      customRenderer?.attach(this._video);
+      customRenderer?.attach(this._video!);
       this._customRenderer = customRenderer ?? null;
     }
 
-    customRenderer?.changeTrack(currentTrack);
+    customRenderer?.changeTrack(currentTrack, this._video!);
   }
 
   private _detach() {
@@ -128,5 +142,5 @@ export interface TextRenderer {
   canRender(track: TextTrack): boolean;
   attach(video: HTMLVideoElement);
   detach(): void;
-  changeTrack(track: TextTrack | null): void;
+  changeTrack(track: TextTrack | null, video?: HTMLVideoElement): void;
 }
