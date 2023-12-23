@@ -1,6 +1,6 @@
 import { isString } from 'maverick.js/std';
 
-import type { MediaSrc } from '../core';
+import type { MediaResource, MediaSrc, ParsedDashManifest } from '../core';
 
 // https://github.com/cookpete/react-player/blob/master/src/patterns.js#L16
 export const AUDIO_EXTENSIONS =
@@ -60,9 +60,10 @@ export const HLS_VIDEO_TYPES = new Set<string>([
   'application/mpegurl',
 ]);
 
-export function isDASHSrc({ src, type, provider }: MediaSrc): boolean {
+export function isDashSrc({ src, type, provider }: MediaSrc): boolean {
   return (
     provider === 'dash' ||
+    isParsedManifest(src) ||
     (isString(src) && DASH_VIDEO_EXTENSIONS.test(src)) ||
     DASH_VIDEO_TYPES.has(type)
   );
@@ -80,6 +81,10 @@ export function isMediaStream(src: unknown): src is MediaStream {
   return (
     !__SERVER__ && typeof window.MediaStream !== 'undefined' && src instanceof window.MediaStream
   );
+}
+
+export function isParsedManifest(src: MediaResource): src is ParsedDashManifest {
+  return typeof src === 'object' && 'protocol' in src && src.protocol === 'DASH';
 }
 
 // export function isMediaSource(src: unknown): src is MediaSource {

@@ -2,6 +2,7 @@ import { peek, type Dispose } from 'maverick.js';
 import { isString } from 'maverick.js/std';
 
 import type { MediaSrc } from '../../core/api/types';
+import { isParsedManifest } from '../../utils/mime';
 import { preconnect } from '../../utils/network';
 import { isDASHSupported } from '../../utils/support';
 import type { MediaProviderAdapter, MediaSetupContext } from '../types';
@@ -109,7 +110,7 @@ export class DASHProvider extends VideoProvider implements MediaProviderAdapter 
   }
 
   override async loadSource(src: MediaSrc, preload?: HTMLMediaElement['preload']) {
-    if (!isString(src.src)) return;
+    if (!isString(src.src) && !isParsedManifest(src.src)) return;
     this._media.preload = preload || '';
     this._controller.instance?.attachSource(src.src);
     this._currentSrc = src;

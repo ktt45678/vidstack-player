@@ -52,7 +52,9 @@ export interface MediaErrorDetail {
   mediaError?: MediaError;
 }
 
-export type MediaResource = string | MediaStream | MediaSource | Blob;
+export type ParsedDashManifest = { [key: string]: any } & { protocol: 'DASH' };
+
+export type MediaResource = string | ParsedDashManifest | MediaStream | MediaSource | Blob;
 
 export type MediaSrc = {
   src: MediaResource;

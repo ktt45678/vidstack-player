@@ -18,7 +18,7 @@ import {
   YouTubeProviderLoader,
   type MediaProviderLoader,
 } from '../../providers';
-import { DASHProviderLoader } from '../../providers/dash/loader';
+import { DashProviderLoader } from '../../providers/dash/loader';
 import { resolveStreamTypeFromHLSManifest } from '../../utils/hls';
 import { isHLSSrc } from '../../utils/mime';
 import { getRequestCredentials, preconnect } from '../../utils/network';
@@ -43,7 +43,7 @@ export class SourceSelection {
     private _loader: WriteSignal<MediaProviderLoader | null>,
   ) {
     const HLS_LOADER = new HLSProviderLoader(),
-      DASH_LOADER = new DASHProviderLoader(),
+      DASH_LOADER = new DashProviderLoader(),
       VIDEO_LOADER = new VideoProviderLoader(),
       AUDIO_LOADER = new AudioProviderLoader(),
       YOUTUBE_LOADER = new YouTubeProviderLoader(),
@@ -244,7 +244,7 @@ export class SourceSelection {
 
 function normalizeSrc(src: MediaPlayerProps['src']): MediaSrc[] {
   return (isArray(src) ? src : [!isString(src) && 'src' in src ? src : { src }]).map(
-    ({ src, type }) => ({
+    ({ src, type, provider }) => ({
       src,
       type:
         type ??
@@ -256,6 +256,7 @@ function normalizeSrc(src: MediaPlayerProps['src']): MediaSrc[] {
             : src.includes('vimeo')
               ? 'video/vimeo'
               : '?'),
+      provider: provider,
     }),
   );
 }

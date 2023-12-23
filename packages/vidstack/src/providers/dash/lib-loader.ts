@@ -1,4 +1,4 @@
-import dashjs from 'dashjs';
+import type * as dashjs from 'dashjs';
 import { DOMEvent, isFunction, isString, isUndefined } from 'maverick.js/std';
 
 import { coerceToError } from '../../utils/error';
@@ -40,7 +40,7 @@ export class DASHLibLoader {
     if (!ctor) return null;
 
     // Not supported.
-    if (!dashjs.supportsMediaSource()) {
+    if (!ctor.supportsMediaSource()) {
       const message = '[vidstack]: `dash.js` is not supported in this environment';
       if (__DEV__) this._ctx.logger?.error(message);
       this._ctx.player.dispatch(new DOMEvent<void>('dash-unsupported'));
@@ -111,15 +111,15 @@ async function importDASH(
 
   // Must be static.
   if ('MediaPlayer' in loader && isFunction(loader.MediaPlayer)) {
-    callbacks.onLoaded?.(loader.MediaPlayer as DASHConstructor);
-    return loader.MediaPlayer as DASHConstructor;
+    callbacks.onLoaded?.(loader);
+    return loader;
   }
 
   try {
     const ctor = (await (loader as DASHConstructorLoader)())?.default;
 
-    if (ctor && dashjs.supportsMediaSource()) {
-      callbacks.onLoaded?.(ctor.MediaPlayer);
+    if (ctor && ctor.supportsMediaSource()) {
+      callbacks.onLoaded?.(ctor);
     } else {
       throw Error(
         __DEV__
@@ -128,7 +128,7 @@ async function importDASH(
       );
     }
 
-    return ctor.MediaPlayer;
+    return ctor;
   } catch (err) {
     callbacks.onLoadError?.(err as Error);
   }
@@ -153,7 +153,7 @@ async function loadDASHScript(
   try {
     await loadScript(src);
 
-    if (!isFunction((window as any).dashjs)) {
+    if (!(window as any).dashjs) {
       throw Error(
         __DEV__
           ? '[vidstack] failed loading `dash.js`. Could not find a valid `dashjs` namespace on window'
@@ -161,7 +161,7 @@ async function loadDASHScript(
       );
     }
 
-    const ctor = (window as any).dashjs.MediaPlayer as DASHConstructor;
+    const ctor = (window as any).dashjs as DASHConstructor;
     callbacks.onLoaded?.(ctor);
     return ctor;
   } catch (err) {

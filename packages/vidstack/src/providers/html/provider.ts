@@ -2,7 +2,7 @@ import { createScope, onDispose } from 'maverick.js';
 import { isString, setAttribute } from 'maverick.js/std';
 
 import type { MediaSrc } from '../../core/api/types';
-import { isMediaStream } from '../../utils/mime';
+import { isMediaStream, isParsedManifest } from '../../utils/mime';
 import type { MediaProviderAdapter, MediaSetupContext } from '../types';
 import { HTMLMediaEvents } from './html–media-events';
 import { NativeAudioTracks } from './native-audio-tracks';
@@ -73,6 +73,8 @@ export class HTMLMediaProvider implements MediaProviderAdapter {
   }
 
   async loadSource({ src, type }: MediaSrc, preload?: HTMLMediaElement['preload']) {
+    if (isParsedManifest(src)) return;
+
     this._media.preload = preload || '';
 
     if (isMediaStream(src)) {

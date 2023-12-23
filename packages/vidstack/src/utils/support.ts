@@ -141,28 +141,13 @@ export function isHLSSupported(): boolean {
 /**
  * Whether `dash.js` is supported in this environment.
  *
+ * @see {@link https://github.com/Dash-Industry-Forum/dash.js/blob/development/src/streaming/utils/Capabilities.js}
  */
 export function isDASHSupported(): boolean {
   if (__SERVER__) return false;
 
-  const MediaSource = getMediaSource();
-
-  if (isUndefined(MediaSource)) return false;
-
-  const isTypeSupported =
-    MediaSource &&
-    isFunction(MediaSource.isTypeSupported) &&
-    MediaSource.isTypeSupported('video/mp4; codecs="avc1.42E01E,mp4a.40.2"');
-
-  const SourceBuffer = getSourceBuffer();
-
-  // If SourceBuffer is exposed ensure its API is valid because safari and old versions of Chrome
-  // do not expose SourceBuffer globally so checking SourceBuffer.prototype is impossible.
-  const isSourceBufferValid =
-    isUndefined(SourceBuffer) ||
-    (!isUndefined(SourceBuffer.prototype) &&
-      isFunction(SourceBuffer.prototype.appendBuffer) &&
-      isFunction(SourceBuffer.prototype.remove));
-
-  return !!isTypeSupported && !!isSourceBufferValid;
+  const hasManagedMediaSource = 'ManagedMediaSource' in window;
+  const hasWebKit = 'WebKitMediaSource' in window;
+  const hasMediaSource = 'MediaSource' in window;
+  return hasManagedMediaSource || hasWebKit || hasMediaSource;
 }
