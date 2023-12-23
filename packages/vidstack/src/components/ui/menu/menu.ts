@@ -12,6 +12,7 @@ import {
   useContext,
 } from 'maverick.js';
 import {
+  animationFrameThrottle,
   ariaBool,
   DOMEvent,
   isKeyboardEvent,
@@ -159,6 +160,7 @@ export class Menu extends Component<MenuProps, {}, MenuEvents> {
   protected override onConnect(el: HTMLElement) {
     effect(this._watchExpanded.bind(this));
     if (this.isSubmenu) this._parentMenu?._addSubmenu(this);
+
     requestAnimationFrame(() => {
       this._onResize();
     });
@@ -233,10 +235,6 @@ export class Menu extends Component<MenuProps, {}, MenuEvents> {
     this._content.set(el);
     onDispose(() => this._content.set(null));
 
-    if (!this.isSubmenu) {
-      this._stopClickPropagation(el);
-    }
-
     const watchAttrs = () => {
       setAttribute(el, 'data-open', this._expanded());
     };
@@ -248,7 +246,13 @@ export class Menu extends Component<MenuProps, {}, MenuEvents> {
     this._updateMenuItemsHidden(false);
 
     if (!__SERVER__) {
-      requestAnimationFrame(this._onResize.bind(this));
+      const onResize = animationFrameThrottle(this._onResize.bind(this)),
+        mutations = new MutationObserver(onResize);
+
+      onResize();
+
+      mutations.observe(el, { childList: true, subtree: true });
+      onDispose(() => mutations.disconnect());
     }
   }
 
@@ -361,6 +365,9 @@ export class Menu extends Component<MenuProps, {}, MenuEvents> {
   }
 
   private _onWindowPointerUp(event: Event) {
+    const isTargetNode = event.target instanceof Node;
+    if (!isTargetNode || this._content()?.contains(event.target)) return;
+
     // A little delay so submenu closing doesn't jump menu size when closing.
     if (this.isSubmenu) return setTimeout(this.close.bind(this, event), 800);
     else this.close(event);

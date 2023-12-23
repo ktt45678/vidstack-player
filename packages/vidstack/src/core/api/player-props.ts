@@ -3,15 +3,23 @@ import type { ScreenOrientationLockType } from '../../foundation/orientation/typ
 import { MEDIA_KEY_SHORTCUTS } from '../keyboard/controller';
 import type { MediaKeyShortcuts, MediaKeyTarget } from '../keyboard/types';
 import type { MediaState } from './player-state';
-import type { MediaLoadingStrategy, MediaResource, MediaSourceProvider } from './types';
+import type {
+  MediaLoadingStrategy,
+  MediaPosterLoadingStrategy,
+  MediaResource,
+  MediaSourceProvider,
+} from './types';
 
 export const mediaPlayerProps: MediaPlayerProps = {
   autoplay: false,
+  clipStartTime: 0,
+  clipEndTime: 0,
   controls: false,
   currentTime: 0,
   crossorigin: null,
   fullscreenOrientation: 'landscape',
   load: 'visible',
+  posterLoad: 'visible',
   logLevel: __DEV__ ? 'warn' : 'silent',
   loop: false,
   muted: false,
@@ -33,12 +41,13 @@ export const mediaPlayerProps: MediaPlayerProps = {
   keyDisabled: false,
   keyTarget: 'player',
   keyShortcuts: MEDIA_KEY_SHORTCUTS,
+  storageKey: null,
 };
 
 export interface MediaStateAccessors
   extends Pick<MediaState, 'paused' | 'muted' | 'volume' | 'currentTime' | 'playbackRate'> {}
 
-export type MediaSrc =
+export type PlayerSrc =
   | MediaResource
   | { src: MediaResource; type?: string; provider?: MediaSourceProvider }
   | { src: MediaResource; type?: string; provider?: MediaSourceProvider }[];
@@ -48,6 +57,8 @@ export interface MediaPlayerProps
   extends Pick<
     MediaState,
     | 'autoplay'
+    | 'clipStartTime'
+    | 'clipEndTime'
     | 'controls'
     | 'currentTime'
     | 'loop'
@@ -79,7 +90,7 @@ export interface MediaPlayerProps
    * @see {@link https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/src}
    * @see {@link https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/srcObject}
    */
-  src: MediaSrc;
+  src: PlayerSrc;
   /**
    * The current log level. Values in order of priority are: `silent`, `error`, `warn`, `info`,
    * and `debug`.
@@ -92,10 +103,22 @@ export interface MediaPlayerProps
    * - `idle`: media will be loaded after the page has loaded and `requestIdleCallback` is fired.
    * - `visible`: media will delay loading until the provider has entered the viewport.
    * - `custom`: media will wait for the `startLoading()` method or `media-start-loading` event.
+   * - `play`: media will delay loading until there is a play request.
    *
    *  @see {@link https://vidstack.io/docs/player/core-concepts/loading#loading-strategies}
    */
   load: MediaLoadingStrategy;
+  /**
+   * Indicates when the player can begin loading the poster.
+   *
+   * - `eager`: poster will be loaded immediately.
+   * - `idle`: poster will be loaded after the page has loaded and `requestIdleCallback` is fired.
+   * - `visible`: poster will delay loading until the provider has entered the viewport.
+   * - `custom`: poster will wait for the `startLoadingPoster()` method or `media-poster-start-loading` event.
+   *
+   *  @see {@link https://vidstack.io/docs/player/core-concepts/loading#loading-strategies}
+   */
+  posterLoad: MediaPosterLoadingStrategy;
   /**
    * The default amount of delay in milliseconds while media playback is progressing without user
    * activity to indicate an idle state and hide controls.
@@ -173,4 +196,9 @@ export interface MediaPlayerProps
    * ```
    */
   keyShortcuts: MediaKeyShortcuts;
+  /**
+   * Determines whether volume, time, and captions settings should be saved to local storage
+   * and used when initializing media.
+   */
+  storageKey: string | null;
 }

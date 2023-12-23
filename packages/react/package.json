@@ -1,6 +1,6 @@
 {
   "name": "@ktt45678/vidstack-react",
-  "version": "1.8.3-F1",
+  "version": "1.9.8-F1",
   "description": "UI component library for building high-quality, accessible video and audio experiences on the web.",
   "license": "MIT",
   "type": "module",
@@ -17,7 +17,7 @@
     "analyze.json"
   ],
   "scripts": {
-    "analyze": "maverick analyze \"src/**/*.tsx\" --framework react",
+    "analyze": "maverick analyze \"src/**/*.tsx\" --framework react --project tsconfig.build.json",
     "dev": "pnpm clean && pnpm build:icons && pnpm build:types && pnpm watch",
     "build": "pnpm build:icons && rollup -c",
     "build:icons": "node .scripts/build-icons.js",
@@ -38,17 +38,18 @@
     "media-captions": "^1.0.1"
   },
   "devDependencies": {
-    "@maverick-js/cli": "0.40.12",
+    "@maverick-js/cli": "0.41.2",
     "@rollup/plugin-node-resolve": "^15.2.0",
     "@types/fs-extra": "^11.0.1",
     "@types/react": "^18.0.0",
     "@vitejs/plugin-react": "^4.2.0",
     "esbuild": "^0.19.4",
     "fs-extra": "^11.0.0",
-    "maverick.js": "0.40.12",
+    "maverick.js": "0.41.2",
     "media-icons": "^1.0.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
+    "remotion": "^4.0.76",
     "rimraf": "^3.0.0",
     "rollup": "^4.0.0",
     "rollup-plugin-dts": "^6.0.0",
@@ -77,6 +78,11 @@
     "./icons": {
       "types": "./icons.d.ts",
       "default": "./dist/prod/vidstack-icons.js"
+    },
+    "./player/remotion": {
+      "types": "./player/remotion.d.ts",
+      "development": "./dist/dev/player/vidstack-remotion.js",
+      "default": "./dist/prod/player/vidstack-remotion.js"
     },
     "./player/layouts/default": {
       "types": "./player/layouts/default.d.ts",

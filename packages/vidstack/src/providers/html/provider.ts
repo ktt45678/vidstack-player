@@ -1,7 +1,7 @@
 import { createScope, onDispose } from 'maverick.js';
 import { isString, setAttribute } from 'maverick.js/std';
 
-import type { MediaSrc } from '../../core/api/types';
+import type { MediaResource, MediaSrc } from '../../core/api/types';
 import { isMediaStream, isParsedManifest } from '../../utils/mime';
 import type { MediaProviderAdapter, MediaSetupContext } from '../types';
 import { HTMLMediaEvents } from './html–media-events';
@@ -16,11 +16,14 @@ import { NativeAudioTracks } from './native-audio-tracks';
 export class HTMLMediaProvider implements MediaProviderAdapter {
   readonly scope = createScope();
 
-  protected _currentSrc: MediaSrc | null = null;
+  protected _ctx!: MediaSetupContext;
+  protected _currentSrc: MediaSrc<MediaResource> | null = null;
 
   constructor(protected _media: HTMLMediaElement) {}
 
   setup(ctx: MediaSetupContext) {
+    this._ctx = ctx;
+
     new HTMLMediaEvents(this, ctx);
 
     if ('audioTracks' in this.media) new NativeAudioTracks(this, ctx);
@@ -72,7 +75,7 @@ export class HTMLMediaProvider implements MediaProviderAdapter {
     setAttribute(this._media, 'playsinline', playsinline);
   }
 
-  async loadSource({ src, type }: MediaSrc, preload?: HTMLMediaElement['preload']) {
+  async loadSource({ src, type }: MediaSrc<MediaResource>, preload?: HTMLMediaElement['preload']) {
     if (isParsedManifest(src)) return;
 
     this._media.preload = preload || '';
@@ -81,10 +84,32 @@ export class HTMLMediaProvider implements MediaProviderAdapter {
       this._media.srcObject = src;
     } else {
       this._media.srcObject = null;
-      this._media.src = isString(src) ? src : window.URL.createObjectURL(src);
+      this._media.src = isString(src)
+        ? this._appendMediaFragment(src)
+        : window.URL.createObjectURL(src as MediaSource | Blob);
     }
 
     this._media.load();
-    this._currentSrc = { src, type };
+
+    this._currentSrc = {
+      src: src as MediaResource,
+      type,
+    };
+  }
+
+  private _appendMediaFragment(src: string) {
+    const { clipStartTime, clipEndTime } = this._ctx.$state,
+      startTime = clipStartTime(),
+      endTime = clipEndTime();
+
+    if (startTime > 0 && endTime > 0) {
+      return `${src}#t=${startTime},${endTime}`;
+    } else if (startTime > 0) {
+      return `${src}#t=${startTime}`;
+    } else if (endTime > 0) {
+      return `${src}#t=0,${endTime}`;
+    }
+
+    return src;
   }
 }

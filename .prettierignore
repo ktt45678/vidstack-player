@@ -6,6 +6,7 @@ globals.d.ts
 *.mp3
 *.vtt
 *.ico
+*.toml
 
 **/partials/markup
 **/partials/import
@@ -18,3 +19,4 @@ globals.d.ts
 LICENSE
 packages/react/.templates/sandbox
 
+mangle.json

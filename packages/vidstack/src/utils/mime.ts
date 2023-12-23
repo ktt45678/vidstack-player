@@ -83,7 +83,7 @@ export function isMediaStream(src: unknown): src is MediaStream {
   );
 }
 
-export function isParsedManifest(src: MediaResource): src is ParsedDashManifest {
+export function isParsedManifest(src: any): src is ParsedDashManifest {
   return typeof src === 'object' && 'protocol' in src && src.protocol === 'DASH';
 }
 

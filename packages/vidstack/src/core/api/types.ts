@@ -24,7 +24,14 @@ export type MediaViewType = 'unknown' | 'audio' | 'video';
  *
  * @docs {@see https://www.vidstack.io/docs/player/core-concepts/loading#loading-strategies}
  */
-export type MediaLoadingStrategy = 'eager' | 'idle' | 'visible' | 'custom';
+export type MediaLoadingStrategy = 'eager' | 'idle' | 'visible' | 'custom' | 'play';
+
+/**
+ * Indicates the type of strategy that should be used to initiate the poster loading process.
+ *
+ * @docs {@see https://www.vidstack.io/docs/player/core-concepts/loading#loading-strategies}
+ */
+export type MediaPosterLoadingStrategy = 'eager' | 'idle' | 'visible' | 'custom';
 
 /**
  * A number which represents the general type of error that occurred.
@@ -49,6 +56,7 @@ export type MediaErrorCode = 1 | 2 | 3 | 4;
 export interface MediaErrorDetail {
   message: string;
   code: MediaErrorCode;
+  error?: Error;
   mediaError?: MediaError;
 }
 
@@ -56,10 +64,10 @@ export type ParsedDashManifest = { [key: string]: any } & { protocol: 'DASH' };
 
 export type MediaResource = string | ParsedDashManifest | MediaStream | MediaSource | Blob;
 
-export type MediaSrc = {
-  src: MediaResource;
+export interface MediaSrc<T = unknown> {
+  src: T;
   type: string;
   provider?: MediaSourceProvider;
-};
+}
 
 export type MediaSourceProvider = 'video' | 'audio' | 'youtube' | 'vimeo' | 'dash' | 'hls';

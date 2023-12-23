@@ -1,5 +1,5 @@
 import { effect, peek, type ReadSignal } from 'maverick.js';
-import { isUndefined } from 'maverick.js/std';
+import { DOMEvent, isUndefined } from 'maverick.js/std';
 
 import {
   FullscreenController,
@@ -7,6 +7,7 @@ import {
 } from '../../foundation/fullscreen/controller';
 import { ScreenOrientationController } from '../../foundation/orientation/controller';
 import { Queue } from '../../foundation/queue/queue';
+import { RequestQueue } from '../../foundation/queue/request-queue';
 import type { MediaProviderAdapter } from '../../providers/types';
 import { coerceToError } from '../../utils/error';
 import type { MediaContext } from '../api/media-context';
@@ -26,7 +27,8 @@ export class MediaRequestManager extends MediaPlayerController implements MediaR
   readonly _fullscreen: FullscreenController;
   readonly _orientation: ScreenOrientationController;
 
-  private readonly _provider: ReadSignal<MediaProviderAdapter | null>;
+  private readonly _$provider: ReadSignal<MediaProviderAdapter | null>;
+  private readonly _providerQueue = new RequestQueue();
 
   constructor(
     private _stateMgr: MediaStateManager,
@@ -34,7 +36,7 @@ export class MediaRequestManager extends MediaPlayerController implements MediaR
     private _media: MediaContext,
   ) {
     super();
-    this._provider = _media.$provider;
+    this._$provider = _media.$provider;
     this._controls = new MediaControls();
     this._fullscreen = new FullscreenController();
     this._orientation = new ScreenOrientationController();
@@ -54,9 +56,40 @@ export class MediaRequestManager extends MediaPlayerController implements MediaR
       }
     }
 
+    this._attachLoadPlayListener();
+    effect(this._watchProvider.bind(this));
     effect(this._onControlsDelayChange.bind(this));
     effect(this._onFullscreenSupportChange.bind(this));
     effect(this._onPiPSupportChange.bind(this));
+  }
+
+  protected override onDestroy(): void {
+    this._providerQueue._reset();
+  }
+
+  private _attachLoadPlayListener() {
+    const { load } = this.$props,
+      { canLoad } = this.$state;
+
+    if (load() !== 'play' || canLoad()) return;
+
+    const off = this.listen('media-play-request', (event) => {
+      this._handleLoadPlayStrategy(event);
+      off();
+    });
+  }
+
+  private _watchProvider() {
+    const provider = this._$provider(),
+      canPlay = this.$state.canPlay();
+
+    if (provider && canPlay) {
+      this._providerQueue._start();
+    }
+
+    return () => {
+      this._providerQueue._stop();
+    };
   }
 
   private _handleRequest(event: Event) {
@@ -69,28 +102,33 @@ export class MediaRequestManager extends MediaPlayerController implements MediaR
         .dispatch();
     }
 
-    if (peek(this._provider)) this[event.type]?.(event);
+    if (!this[event.type]) return;
+
+    if (peek(this._$provider)) {
+      this[event.type](event);
+    } else {
+      this._providerQueue._enqueue(event.type as any, () => {
+        if (peek(this._$provider)) this[event.type](event);
+      });
+    }
   }
 
   async _play(trigger?: Event) {
     if (__SERVER__) return;
 
-    const { canPlay, paused, ended, autoplaying, seekableStart } = this.$state;
+    const { canPlay, paused, autoplaying } = this.$state;
 
-    if (!peek(paused)) return;
+    if (this._handleLoadPlayStrategy(trigger)) return;
+
+    if (!peek(paused) && !this._request._looping) return;
 
     if (trigger?.type === 'media-play-request') {
       this._request._queue._enqueue('play', trigger as RE.MediaPlayRequestEvent);
     }
 
     try {
-      const provider = peek(this._provider);
+      const provider = peek(this._$provider);
       throwIfNotReadyForPlayback(provider, peek(canPlay));
-
-      if (peek(ended)) {
-        provider!.setCurrentTime(seekableStart() + 0.1);
-      }
-
       return await provider!.play();
     } catch (error) {
       if (__DEV__) {
@@ -113,6 +151,28 @@ export class MediaRequestManager extends MediaPlayerController implements MediaR
     }
   }
 
+  private _handleLoadPlayStrategy(trigger?: Event) {
+    const { load } = this.$props,
+      { canLoad } = this.$state;
+
+    if (load() === 'play' && !canLoad()) {
+      const event = this.createEvent('media-start-loading', { trigger });
+      this.dispatchEvent(event);
+
+      this._providerQueue._enqueue('play', async () => {
+        try {
+          await this._play(event);
+        } catch (e) {
+          // no-op
+        }
+      });
+
+      return true;
+    }
+
+    return false;
+  }
+
   async _pause(trigger?: Event) {
     if (__SERVER__) return;
 
@@ -124,7 +184,7 @@ export class MediaRequestManager extends MediaPlayerController implements MediaR
       this._request._queue._enqueue('pause', trigger as RE.MediaPauseRequestEvent);
     }
 
-    const provider = peek(this._provider);
+    const provider = peek(this._$provider);
     throwIfNotReadyForPlayback(provider, peek(canPlay));
 
     return provider!.pause();
@@ -140,10 +200,11 @@ export class MediaRequestManager extends MediaPlayerController implements MediaR
 
     if (peek(() => !live() || liveEdge() || !canSeek())) return;
 
-    const provider = peek(this._provider);
+    const provider = peek(this._$provider);
     throwIfNotReadyForPlayback(provider, peek(canPlay));
 
-    provider!.setCurrentTime(liveSyncPosition() ?? seekableEnd() - 2);
+    const end = seekableEnd() - 2;
+    provider!.setCurrentTime(Math.min(end, liveSyncPosition() ?? end));
   }
 
   private _wasPIPActive = false;
@@ -198,7 +259,7 @@ export class MediaRequestManager extends MediaPlayerController implements MediaR
   }
 
   private _getFullscreenAdapter(target: RE.MediaFullscreenRequestTarget) {
-    const provider = peek(this._provider);
+    const provider = peek(this._$provider);
     return (target === 'prefer-media' && this._fullscreen.supported) || target === 'media'
       ? this._fullscreen
       : provider?.fullscreen;
@@ -215,7 +276,7 @@ export class MediaRequestManager extends MediaPlayerController implements MediaR
       this._request._queue._enqueue('pip', trigger as RE.MediaEnterPIPRequestEvent);
     }
 
-    return await this._provider()!.pictureInPicture!.enter();
+    return await this._$provider()!.pictureInPicture!.enter();
   }
 
   async _exitPictureInPicture(trigger?: Event) {
@@ -229,7 +290,7 @@ export class MediaRequestManager extends MediaPlayerController implements MediaR
       this._request._queue._enqueue('pip', trigger as RE.MediaExitPIPRequestEvent);
     }
 
-    return await this._provider()!.pictureInPicture!.exit();
+    return await this._$provider()!.pictureInPicture!.exit();
   }
 
   private _throwIfPIPNotSupported() {
@@ -247,7 +308,7 @@ export class MediaRequestManager extends MediaPlayerController implements MediaR
 
   private _onFullscreenSupportChange() {
     const { canLoad, canFullscreen } = this.$state,
-      supported = this._fullscreen.supported || this._provider()?.fullscreen?.supported || false;
+      supported = this._fullscreen.supported || this._$provider()?.fullscreen?.supported || false;
 
     if (canLoad() && peek(canFullscreen) === supported) return;
 
@@ -256,7 +317,7 @@ export class MediaRequestManager extends MediaPlayerController implements MediaR
 
   private _onPiPSupportChange() {
     const { canLoad, canPictureInPicture } = this.$state,
-      supported = this._provider()?.pictureInPicture?.supported || false;
+      supported = this._$provider()?.pictureInPicture?.supported || false;
 
     if (canLoad() && peek(canPictureInPicture) === supported) return;
 
@@ -424,7 +485,6 @@ export class MediaRequestManager extends MediaPlayerController implements MediaR
       await this._play(event);
     } catch (e) {
       this._request._looping = false;
-      this._request._replaying = false;
     }
   }
 
@@ -435,7 +495,7 @@ export class MediaRequestManager extends MediaPlayerController implements MediaR
     } catch (error) {
       if (__DEV__) {
         this._media.logger
-          ?.errorGroup('πause request failed')
+          ?.errorGroup('pause request failed')
           .labelledLog('Request', event)
           .labelledLog('Error', error)
           .dispatch();
@@ -459,7 +519,7 @@ export class MediaRequestManager extends MediaPlayerController implements MediaR
     const { playbackRate, canSetPlaybackRate } = this.$state;
     if (playbackRate() === event.detail || !canSetPlaybackRate()) return;
 
-    const provider = this._provider();
+    const provider = this._$provider();
     if (!provider?.setPlaybackRate) return;
 
     this._request._queue._enqueue('rate', event);
@@ -509,19 +569,23 @@ export class MediaRequestManager extends MediaPlayerController implements MediaR
   }
 
   ['media-seek-request'](event: RE.MediaSeekRequestEvent) {
-    const { seekableStart, seekableEnd, ended, canSeek, live, userBehindLiveEdge } = this.$state;
+    const { seekableStart, seekableEnd, ended, canSeek, live, userBehindLiveEdge, clipStartTime } =
+      this.$state;
 
     if (ended()) this._request._replaying = true;
 
     this._request._seeking = false;
     this._request._queue._delete('seeking');
 
-    const boundTime = Math.min(Math.max(seekableStart() + 0.1, event.detail), seekableEnd() - 0.1);
+    const boundTime = Math.min(
+      Math.max(seekableStart() + 0.1, event.detail + clipStartTime()),
+      seekableEnd() - 0.1,
+    );
 
     if (!Number.isFinite(boundTime) || !canSeek()) return;
 
     this._request._queue._enqueue('seeked', event);
-    this._provider()!.setCurrentTime(boundTime);
+    this._$provider()!.setCurrentTime(boundTime);
 
     if (live() && event.isOriginTrusted && Math.abs(seekableEnd() - boundTime) >= 2) {
       userBehindLiveEdge.set(true);
@@ -538,6 +602,12 @@ export class MediaRequestManager extends MediaPlayerController implements MediaR
     if (this.$state.canLoad()) return;
     this._request._queue._enqueue('load', event);
     this._stateMgr._handle(this.createEvent('can-load'));
+  }
+
+  ['media-poster-start-loading'](event: RE.MediaPosterStartLoadingRequestEvent) {
+    if (this.$state.canLoadPoster()) return;
+    this._request._queue._enqueue('posterLoad', event);
+    this._stateMgr._handle(this.createEvent('can-load-poster'));
   }
 
   ['media-text-track-change-request'](event: RE.MediaTextTrackChangeRequestEvent) {
@@ -559,7 +629,7 @@ export class MediaRequestManager extends MediaPlayerController implements MediaR
   ['media-mute-request'](event: RE.MediaMuteRequestEvent) {
     if (this.$state.muted()) return;
     this._request._queue._enqueue('volume', event);
-    this._provider()!.setMuted(true);
+    this._$provider()!.setMuted(true);
   }
 
   ['media-unmute-request'](event: RE.MediaUnmuteRequestEvent) {
@@ -572,7 +642,7 @@ export class MediaRequestManager extends MediaPlayerController implements MediaR
 
     if (volume() === 0) {
       this._request._queue._enqueue('volume', event);
-      this._provider()!.setVolume(0.25);
+      this._$provider()!.setVolume(0.25);
     }
   }
 
@@ -583,11 +653,11 @@ export class MediaRequestManager extends MediaPlayerController implements MediaR
     if (volume() === newVolume) return;
 
     this._request._queue._enqueue('volume', event);
-    this._provider()!.setVolume(newVolume);
+    this._$provider()!.setVolume(newVolume);
 
     if (newVolume > 0 && muted()) {
       this._request._queue._enqueue('volume', event);
-      this._provider()!.setMuted(false);
+      this._$provider()!.setMuted(false);
     }
   }
 }
@@ -623,6 +693,7 @@ export class MediaRequestContext {
 export interface MediaRequestQueueRecord {
   audioTrack: RE.MediaAudioTrackChangeRequestEvent;
   load: RE.MediaStartLoadingRequestEvent;
+  posterLoad: RE.MediaPosterStartLoadingRequestEvent;
   play: RE.MediaPlayRequestEvent;
   pause: RE.MediaPauseRequestEvent;
   rate: RE.MediaRateChangeRequestEvent;

@@ -33,8 +33,8 @@ export class MediaSliderThumbnailElement extends MediaThumbnailElement {
   }
 
   private _watchTime() {
-    const { duration } = this._media.$state;
-    this.time = this._slider.pointerRate() * duration();
+    const { duration, clipStartTime } = this._media.$state;
+    this.time = clipStartTime() + this._slider.pointerRate() * duration();
   }
 }
 

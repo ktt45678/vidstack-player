@@ -1,10 +1,17 @@
 import { createScope, effect, peek, signal } from 'maverick.js';
-import { deferredPromise, isString, listenEvent, type DeferredPromise } from 'maverick.js/std';
+import {
+  deferredPromise,
+  isArray,
+  isString,
+  listenEvent,
+  type DeferredPromise,
+} from 'maverick.js/std';
 
 import { TimeRange, type MediaSrc } from '../../core';
 import { QualitySymbol } from '../../core/quality/symbols';
 import { ListSymbol } from '../../foundation/list/symbols';
 import { RAFLoop } from '../../foundation/observers/raf-loop';
+import { coerceToError } from '../../utils/error';
 import { preconnect } from '../../utils/network';
 import { timedPromise } from '../../utils/promise';
 import { EmbedProvider } from '../embed/EmbedProvider';
@@ -19,6 +26,7 @@ import {
 import type { VimeoMessage } from './embed/message';
 import type { VimeoOEmbedData, VimeoQuality, VimeoVideoInfo } from './embed/misc';
 import type { VimeoParams } from './embed/params';
+import { getVimeoVideoInfo, resolveVimeoVideoId } from './utils';
 
 /**
  * This provider enables loading videos uploaded to Vimeo (https://vimeo.com) via embeds.
@@ -42,9 +50,7 @@ export class VimeoProvider
   extends EmbedProvider<VimeoMessage>
   implements Pick<VimeoParams, 'title' | 'byline' | 'portrait' | 'color'>
 {
-  protected static _videoIdRE =
-    /(?:https:\/\/)?(?:player\.)?vimeo(?:\.com)?\/(?:video\/)?(\d+)(?:\?hash=(.*))?/;
-  protected static _infoCache = new Map<string, VimeoVideoInfo>();
+  protected readonly $$PROVIDER_TYPE = 'VIMEO';
 
   readonly scope = createScope();
 
@@ -58,10 +64,9 @@ export class VimeoProvider
   protected _videoId = signal('');
   protected _pro = signal(false);
   protected _hash: string | null = null;
-  protected _currentSrc: MediaSrc | null = null;
+  protected _currentSrc: MediaSrc<string> | null = null;
   protected _currentCue: VTTCue | null = null;
   protected _timeRAF = new RAFLoop(this._onAnimationFrame.bind(this));
-  protected readonly $$PROVIDER_TYPE = 'VIMEO';
 
   protected get _notify() {
     return this._ctx.delegate._notify;
@@ -80,10 +85,10 @@ export class VimeoProvider
   color = '00ADEF';
 
   get type() {
-    return 'video';
+    return 'vimeo';
   }
 
-  get currentSrc() {
+  get currentSrc(): MediaSrc<string> | null {
     return this._currentSrc;
   }
 
@@ -100,16 +105,7 @@ export class VimeoProvider
   }
 
   preconnect() {
-    const connections = [
-      this._getOrigin(),
-      'https://i.vimeocdn.com',
-      'https://f.vimeocdn.com',
-      'https://fresnel.vimeocdn.com',
-    ];
-
-    for (const url of connections) {
-      preconnect(url, 'preconnect');
-    }
+    preconnect(this._getOrigin(), 'preconnect');
   }
 
   override setup(ctx: MediaSetupContext) {
@@ -142,7 +138,6 @@ export class VimeoProvider
 
   async play() {
     const { paused } = this._ctx.$state;
-    if (!peek(paused)) return;
 
     if (!this._playPromise) {
       this._playPromise = timedPromise<void, string>(() => {
@@ -158,7 +153,6 @@ export class VimeoProvider
 
   async pause() {
     const { paused } = this._ctx.$state;
-    if (peek(paused)) return;
 
     if (!this._pausePromise) {
       this._pausePromise = timedPromise<void, string>(() => {
@@ -178,10 +172,13 @@ export class VimeoProvider
 
   setCurrentTime(time) {
     this._remote('seekTo', time);
+    this._notify('seeking', time);
   }
 
   setVolume(volume) {
     this._remote('setVolume', volume);
+    // Always update muted after volume because setting volume resets muted state.
+    this._remote('setMuted', peek(this._ctx.$state.muted));
   }
 
   setPlaybackRate(rate) {
@@ -196,14 +193,11 @@ export class VimeoProvider
       return;
     }
 
-    const matches = src.src.match(VimeoProvider._videoIdRE),
-      videoId = matches?.[1],
-      hash = matches?.[2];
-
+    const { videoId, hash } = resolveVimeoVideoId(src.src);
     this._videoId.set(videoId ?? '');
     this._hash = hash ?? null;
 
-    this._currentSrc = src;
+    this._currentSrc = src as MediaSrc<string>;
   }
 
   protected _watchVideoId() {
@@ -220,49 +214,25 @@ export class VimeoProvider
   }
 
   protected _watchVideoInfo() {
-    const src = this._src(),
-      videoId = this._videoId(),
-      cache = VimeoProvider._infoCache,
-      info = cache.get(videoId);
+    const videoId = this._videoId();
 
     if (!videoId) return;
 
-    const promise = deferredPromise<VimeoVideoInfo, void>();
-    this._videoInfoPromise = promise;
-
-    if (info) {
-      promise.resolve(info);
-      return;
-    }
-
-    const oembedSrc = `https://vimeo.com/api/oembed.json?url=${src}`,
+    const promise = deferredPromise<VimeoVideoInfo, void>(),
       abort = new AbortController();
 
-    window
-      .fetch(oembedSrc, {
-        mode: 'cors',
-        signal: abort.signal,
-      })
-      .then((response) => response.json())
-      .then((data: VimeoOEmbedData) => {
-        const thumnailRegex = /vimeocdn.com\/video\/(.*)?_/,
-          thumbnailId = data?.thumbnail_url?.match(thumnailRegex)?.[1],
-          poster = thumbnailId ? `https://i.vimeocdn.com/video/${thumbnailId}_1920x1080.webp` : '',
-          info = {
-            title: data?.title ?? '',
-            duration: data?.duration ?? 0,
-            poster,
-            pro: data.account_type !== 'basic',
-          };
+    this._videoInfoPromise = promise;
 
-        cache.set(videoId, info);
+    getVimeoVideoInfo(videoId, abort)
+      .then((info) => {
         promise.resolve(info);
       })
       .catch((e) => {
         promise.reject();
         this._notify('error', {
-          message: `Failed to fetch vimeo video info from \`${oembedSrc}\`.`,
+          message: `Failed to fetch vimeo video info for id \`${videoId}\`.`,
           code: 1,
+          error: coerceToError(e),
         });
       });
 
@@ -295,7 +265,7 @@ export class VimeoProvider
   protected override _buildParams(): VimeoParams {
     const { $iosControls } = this._ctx,
       { keyDisabled } = this._ctx.$props,
-      { controls, muted, playsinline } = this._ctx.$state,
+      { controls, playsinline } = this._ctx.$state,
       showControls = controls() || $iosControls();
     return {
       title: this.title,
@@ -306,7 +276,6 @@ export class VimeoProvider
       h: this.hash,
       keyboard: showControls && !keyDisabled(),
       transparent: true,
-      muted: muted(),
       playsinline: playsinline(),
       dnt: !this.cookies,
     };
@@ -317,16 +286,17 @@ export class VimeoProvider
   }
 
   protected _onTimeUpdate(time: number, trigger: Event) {
-    const { currentTime, paused, bufferedEnd } = this._ctx.$state;
-    if (currentTime() === time) return;
+    const { realCurrentTime, paused, bufferedEnd } = this._ctx.$state;
 
-    const prevTime = currentTime(),
+    if (realCurrentTime() === time) return;
+
+    const prevTime = realCurrentTime(),
       detail = {
         currentTime: time,
         played:
           this._played >= time
             ? this._playedRange
-            : (this._playedRange = new TimeRange(0, this._played)),
+            : (this._playedRange = new TimeRange(0, (this._played = time))),
       };
 
     this._notify('time-update', detail, trigger);
@@ -334,6 +304,7 @@ export class VimeoProvider
     // This is how we detect `seeking` early.
     if (Math.abs(prevTime - time) > 1.5) {
       this._notify('seeking', time, trigger);
+
       if (!paused() && bufferedEnd() < time) {
         this._notify('waiting', undefined, trigger);
       }
@@ -351,9 +322,11 @@ export class VimeoProvider
       .then((info) => {
         if (!info) return;
 
-        const { title, poster, duration, pro } = info;
+        const { title, poster, duration, pro } = info,
+          { $iosControls } = this._ctx,
+          { controls } = this._ctx.$state,
+          showControls = controls() || $iosControls();
 
-        this._timeRAF._start();
         this._pro.set(pro);
         this._seekableRange = new TimeRange(0, duration);
         this._notify('poster-change', poster, trigger);
@@ -367,10 +340,6 @@ export class VimeoProvider
         };
 
         this._ctx.delegate._ready(detail, trigger);
-
-        const { $iosControls } = this._ctx,
-          { controls } = this._ctx.$state,
-          showControls = controls() || $iosControls();
 
         if (!showControls) {
           this._remote('_hideOverlay');
@@ -387,8 +356,9 @@ export class VimeoProvider
       .catch((e) => {
         if (videoId !== this._videoId()) return;
         this._notify('error', {
-          message: `Failed to fetch oembed data: ${e}`,
+          message: `Failed to fetch oembed data`,
           code: 2,
+          error: coerceToError(e),
         });
       });
   }
@@ -402,6 +372,11 @@ export class VimeoProvider
       case 'getCurrentTime':
         // Why isn't this narrowing type?
         this._onTimeUpdate(data as number, trigger);
+        break;
+      case 'getBuffered':
+        if (isArray(data) && data.length) {
+          this._onLoadProgress(data[data.length - 1][1] as number, trigger);
+        }
         break;
       case 'setMuted':
         this._onVolumeChange(peek(this._ctx.$state.volume), data as boolean, trigger);
@@ -424,12 +399,14 @@ export class VimeoProvider
   }
 
   protected _onPause(trigger: Event) {
+    this._timeRAF._stop();
     this._notify('pause', undefined, trigger);
     this._pausePromise?.resolve();
     this._pausePromise = null;
   }
 
   protected _onPlay(trigger: Event) {
+    this._timeRAF._start();
     this._notify('play', undefined, trigger);
     this._playPromise?.resolve();
     this._playPromise = null;
@@ -565,13 +542,13 @@ export class VimeoProvider
       case 'play':
         this._onPlay(trigger);
         break;
-      case 'playprogress':
+      case 'playProgress':
         this._onPlayProgress(trigger);
         break;
       case 'pause':
         this._onPause(trigger);
         break;
-      case 'loadprogress':
+      case 'loadProgress':
         this._onLoadProgress(payload.seconds, trigger);
         break;
       case 'waiting':
@@ -611,6 +588,7 @@ export class VimeoProvider
       case 'error':
         this._onError(payload, trigger);
         break;
+      case 'seek':
       case 'seeked':
         this._onSeeked(payload.seconds, trigger);
         break;

@@ -25,14 +25,17 @@ export class LibASSTextRenderer implements TextRenderer {
     public rendererConfig?: LibASSTextRendererConfig,
   ) {}
 
-  canRender(track: TextTrack): boolean {
+  canRender(track: TextTrack, video: HTMLVideoElement | null): boolean {
     return (
+      !!video &&
       !!track.src &&
       ((isString(track.type) && this._typeRE.test(track.type)) || this._typeRE.test(track.src))
     );
   }
 
-  async attach(video: HTMLVideoElement) {
+  async attach(video: HTMLVideoElement | null) {
+    if (!video) return;
+
     if (this._libAssCtor === null)
       this._libAssCtor = await this.loader().then((mod) => mod.default);
     if (this._instance) this.destroy();
@@ -40,7 +43,7 @@ export class LibASSTextRenderer implements TextRenderer {
       ...this.config,
       video,
       subUrl: this._track?.content ? undefined : this._track?.src || '',
-      subContent: this._track?.content,
+      subContent: this.isValidContent(this._track?.content) ? this._track?.content : undefined,
     });
 
     const disposeReadyEvent = listenEvent(this._instance, 'ready', () => {
@@ -92,6 +95,14 @@ export class LibASSTextRenderer implements TextRenderer {
   private _freeTrack() {
     this._instance?.freeTrack();
     this._track = null;
+  }
+
+  private isValidContent(
+    content: typeof TextTrack.prototype.content,
+  ): content is string | undefined {
+    if (!content) return true;
+    if (typeof content === 'string') return true;
+    return false;
   }
 }
 

@@ -1,5 +1,12 @@
-import { createScope, effect, peek, signal } from 'maverick.js';
-import { isBoolean, isNumber, isObject, isString, type DeferredPromise } from 'maverick.js/std';
+import { createScope, effect, signal } from 'maverick.js';
+import {
+  isBoolean,
+  isNumber,
+  isObject,
+  isString,
+  noop,
+  type DeferredPromise,
+} from 'maverick.js/std';
 
 import { TimeRange, type MediaSrc } from '../../core';
 import { preconnect } from '../../utils/network';
@@ -10,6 +17,7 @@ import type { YouTubeCommandArg } from './embed/command';
 import type { YouTubeMessage } from './embed/message';
 import type { YouTubeParams } from './embed/params';
 import { YouTubePlayerState, type YouTubePlayerStateValue } from './embed/state';
+import { resolveYouTubeVideoId } from './utils';
 
 /**
  * This provider enables loading videos uploaded to YouTube (youtube.com) via embeds.
@@ -27,9 +35,7 @@ export class YouTubeProvider
   extends EmbedProvider<YouTubeMessage>
   implements MediaProviderAdapter, Pick<YouTubeParams, 'color' | 'start' | 'end'>
 {
-  protected static _videoIdRE =
-    /(?:youtu\.be|youtube|youtube\.com|youtube-nocookie\.com)\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|)((?:\w|-){11})/;
-  protected static _posterCache = new Map<string, string>();
+  protected readonly $$PROVIDER_TYPE = 'YOUTUBE';
 
   readonly scope = createScope();
 
@@ -37,12 +43,12 @@ export class YouTubeProvider
   protected _videoId = signal('');
   protected _state: YouTubePlayerStateValue = -1;
   protected _seekingTimer = -1;
+  protected _pausedSeeking = false;
   protected _played = 0;
   protected _playedRange = new TimeRange(0, 0);
-  protected _currentSrc: MediaSrc | null = null;
+  protected _currentSrc: MediaSrc<string> | null = null;
   protected _playPromise: DeferredPromise<void, string> | null = null;
   protected _pausePromise: DeferredPromise<void, string> | null = null;
-  protected readonly $$PROVIDER_TYPE = 'YOUTUBE';
 
   protected get _notify() {
     return this._ctx.delegate._notify;
@@ -70,12 +76,12 @@ export class YouTubeProvider
    */
   cookies = false;
 
-  get currentSrc() {
+  get currentSrc(): MediaSrc<string> | null {
     return this._currentSrc;
   }
 
   get type() {
-    return 'video';
+    return 'youtube';
   }
 
   get videoId() {
@@ -83,33 +89,18 @@ export class YouTubeProvider
   }
 
   preconnect() {
-    const connections = [
-      this._getOrigin(),
-      // Botguard script.
-      'https://www.google.com',
-      // Poster.
-      'https://i.ytimg.com',
-      // Ads.
-      'https://googleads.g.doubleclick.net',
-      'https://static.doubleclick.net',
-    ];
-
-    for (const url of connections) {
-      preconnect(url, 'preconnect');
-    }
+    preconnect(this._getOrigin(), 'preconnect');
   }
 
   override setup(ctx: MediaSetupContext) {
     this._ctx = ctx;
     super.setup(ctx);
     effect(this._watchVideoId.bind(this));
-    effect(this._watchPoster.bind(this));
     this._notify('provider-setup', this);
   }
 
   async play() {
     const { paused } = this._ctx.$state;
-    if (!peek(paused)) return;
 
     if (!this._playPromise) {
       this._playPromise = timedPromise<void, string>(() => {
@@ -125,7 +116,6 @@ export class YouTubeProvider
 
   async pause() {
     const { paused } = this._ctx.$state;
-    if (peek(paused)) return;
 
     if (!this._pausePromise) {
       this._pausePromise = timedPromise<void, string>(() => {
@@ -145,7 +135,9 @@ export class YouTubeProvider
   }
 
   setCurrentTime(time: number) {
+    this._pausedSeeking = this._ctx.$state.paused();
     this._remote('seekTo', time);
+    this._notify('seeking', time);
   }
 
   setVolume(volume: number) {
@@ -163,10 +155,10 @@ export class YouTubeProvider
       return;
     }
 
-    const videoId = src.src.match(YouTubeProvider._videoIdRE)?.[1];
+    const videoId = resolveYouTubeVideoId(src.src);
     this._videoId.set(videoId ?? '');
 
-    this._currentSrc = src;
+    this._currentSrc = src as MediaSrc<string>;
   }
 
   protected override _getOrigin() {
@@ -184,56 +176,6 @@ export class YouTubeProvider
     }
 
     this._src.set(`${this._getOrigin()}/embed/${videoId}`);
-  }
-
-  protected _watchPoster() {
-    const videoId = this._videoId(),
-      cache = YouTubeProvider._posterCache;
-
-    if (!videoId) return;
-
-    if (cache.has(videoId)) {
-      const url = cache.get(videoId)!;
-      this._notify('poster-change', url);
-      return;
-    }
-
-    const abort = new AbortController();
-    this._findPoster(videoId, abort);
-
-    return () => {
-      abort.abort();
-    };
-  }
-
-  private async _findPoster(videoId: string, abort: AbortController) {
-    try {
-      const sizes = ['maxresdefault', 'sddefault', 'hqdefault'];
-      for (const size of sizes) {
-        for (const webp of [true, false]) {
-          const url = this._resolvePosterURL(videoId, size, webp),
-            response = await fetch(url, {
-              mode: 'no-cors',
-              signal: abort.signal,
-            });
-
-          if (response.status < 400) {
-            YouTubeProvider._posterCache.set(videoId, url);
-            this._notify('poster-change', url);
-            return;
-          }
-        }
-      }
-    } catch (e) {
-      // no-op
-    }
-
-    this._notify('poster-change', '');
-  }
-
-  protected _resolvePosterURL(videoId: string, size: string, webp: boolean) {
-    const type = webp ? 'webp' : 'jpg';
-    return `https://i.ytimg.com/${webp ? 'vi_webp' : 'vi'}/${videoId}/${size}.${type}`;
   }
 
   protected override _buildParams(): YouTubeParams {
@@ -281,20 +223,21 @@ export class YouTubeProvider
   }
 
   protected _onTimeUpdate(time: number, trigger: Event) {
-    const { duration, currentTime } = this._ctx.$state,
-      boundTime = this._state === YouTubePlayerState._Ended ? duration() : time,
+    const { duration, realCurrentTime } = this._ctx.$state,
+      hasEnded = this._state === YouTubePlayerState._Ended,
+      boundTime = hasEnded ? duration() : time,
       detail = {
         currentTime: boundTime,
         played:
           this._played >= boundTime
             ? this._playedRange
-            : (this._playedRange = new TimeRange(0, this._played)),
+            : (this._playedRange = new TimeRange(0, (this._played = time))),
       };
 
     this._notify('time-update', detail, trigger);
 
     // // This is the only way to detect `seeking`.
-    if (Math.abs(boundTime - currentTime()) > 1) {
+    if (!hasEnded && Math.abs(boundTime - realCurrentTime()) > 1) {
       this._notify('seeking', boundTime, trigger);
     }
   }
@@ -307,26 +250,26 @@ export class YouTubeProvider
 
     this._notify('progress', detail, trigger);
 
-    const { seeking, currentTime } = this._ctx.$state;
+    const { seeking, realCurrentTime } = this._ctx.$state;
 
     /**
      * This is the only way to detect `seeked`. Unfortunately while the player is `paused` `seeking`
      * and `seeked` will fire at the same time, there are no updates in-between -_-. We need an
      * artificial delay between the two events.
      */
-    if (seeking() && buffered > currentTime()) {
+    if (seeking() && buffered > realCurrentTime()) {
       this._onSeeked(trigger);
     }
   }
 
   protected _onSeeked(trigger: Event) {
-    const { paused, currentTime } = this._ctx.$state;
+    const { paused, realCurrentTime } = this._ctx.$state;
 
     window.clearTimeout(this._seekingTimer);
 
     this._seekingTimer = window.setTimeout(
       () => {
-        this._notify('seeked', currentTime(), trigger);
+        this._notify('seeked', realCurrentTime(), trigger);
         this._seekingTimer = -1;
       },
       paused() ? 100 : 0,
@@ -340,14 +283,32 @@ export class YouTubeProvider
   }
 
   protected _onStateChange(state: YouTubePlayerStateValue, trigger: Event) {
-    const { paused } = this._ctx.$state,
+    const { started, paused, seeking } = this._ctx.$state,
       isPlaying = state === YouTubePlayerState._Playing,
-      isBuffering = state === YouTubePlayerState._Buffering;
+      isBuffering = state === YouTubePlayerState._Buffering,
+      isPlay = (paused() || this._playPromise) && (isBuffering || isPlaying);
 
     if (isBuffering) this._notify('waiting', undefined, trigger);
 
+    if (seeking() && isPlaying) {
+      this._onSeeked(trigger);
+    }
+
+    // Embed incorrectly plays on initial seek operation.
+    if (!started() && isPlay && this._pausedSeeking) {
+      this._playPromise?.reject('invalid internal play operation');
+      this._playPromise = null;
+
+      if (isPlaying) {
+        this.pause();
+        this._pausedSeeking = false;
+      }
+
+      return;
+    }
+
     // Attempt to detect `play` events early.
-    if (paused() && (isBuffering || isPlaying)) {
+    if (isPlay) {
       this._playPromise?.resolve();
       this._playPromise = null;
       this._notify('play', undefined, trigger);
@@ -374,7 +335,7 @@ export class YouTubeProvider
   protected override _onMessage({ info }: YouTubeMessage, event: MessageEvent) {
     if (!info) return;
 
-    const { title, duration, playbackRate } = this._ctx.$state;
+    const { title, intrinsicDuration: duration, playbackRate } = this._ctx.$state;
 
     if (isObject(info.videoData) && info.videoData.title !== title()) {
       this._notify('title-change', info.videoData.title, event);
@@ -430,5 +391,6 @@ export class YouTubeProvider
     this._playedRange = new TimeRange(0, 0);
     this._playPromise = null;
     this._pausePromise = null;
+    this._pausedSeeking = false;
   }
 }

@@ -48,7 +48,7 @@ export class HTMLMediaEvents {
    */
   private _onAnimationFrame() {
     const newTime = this._media.currentTime;
-    if (this._ctx.$state.currentTime() !== newTime) this._updateCurrentTime(newTime);
+    if (this._ctx.$state.realCurrentTime() !== newTime) this._updateCurrentTime(newTime);
   }
 
   private _attachInitialListeners() {
@@ -60,6 +60,7 @@ export class HTMLMediaEvents {
     this._attachEventListener('abort', this._onAbort);
     this._attachEventListener('emptied', this._onEmptied);
     this._attachEventListener('error', this._onError);
+    this._attachEventListener('volumechange', this._onVolumeChange);
     if (__DEV__) this._ctx.logger?.debug('attached initial media event listeners');
   }
 
@@ -99,7 +100,6 @@ export class HTMLMediaEvents {
       this._attachEventListener('seeked', this._onSeeked),
       this._attachEventListener('seeking', this._onSeeking),
       this._attachEventListener('ended', this._onEnded),
-      this._attachEventListener('volumechange', this._onVolumeChange),
       this._attachEventListener('waiting', this._onWaiting),
     );
     this._attachedCanPlay = true;
@@ -166,16 +166,6 @@ export class HTMLMediaEvents {
 
   private _onLoadedMetadata(event: Event) {
     this._attachCanPlayListeners();
-
-    // Sync volume state before metadata.
-    this._notify(
-      'volume-change',
-      {
-        volume: this._media.volume,
-        muted: this._media.muted,
-      },
-      event,
-    );
 
     this._notify('loaded-metadata', undefined, event);
 

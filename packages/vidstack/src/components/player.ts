@@ -10,6 +10,7 @@ import {
   provideContext,
   scoped,
   signal,
+  type WriteSignalRecord,
 } from 'maverick.js';
 import type { ElementAttributesRecord } from 'maverick.js/element';
 import {
@@ -50,6 +51,7 @@ import { MediaPlayerDelegate } from '../core/state/media-player-delegate';
 import { MediaRequestContext, MediaRequestManager } from '../core/state/media-request-manager';
 import { MediaStateManager } from '../core/state/media-state-manager';
 import { MediaStateSync } from '../core/state/media-state-sync';
+import { MediaStorage } from '../core/storage';
 import { TextTrackSymbol } from '../core/tracks/text/symbols';
 import { canFullscreen } from '../foundation/fullscreen/controller';
 import { Logger } from '../foundation/logger/controller';
@@ -133,12 +135,17 @@ export class MediaPlayer
 
     new MediaStateSync();
 
+    const mediaStorageKey = computed(this._computeMediaKey.bind(this)),
+      storage = new MediaStorage(this.$props.storageKey, mediaStorageKey);
+
     const context = {
       player: this,
       scope: getScope(),
       qualities: new VideoQualityList(),
       audioTracks: new AudioTrackList(),
+      storage,
       $provider: signal<MediaProvider | null>(null),
+      $providerSetup: signal(false),
       $props: this.$props,
       $state: this.$state as MediaStore,
     } as unknown as MediaContext;
@@ -154,7 +161,7 @@ export class MediaPlayer
     context.remote = new MediaRemoteControl(__DEV__ ? context.logger : undefined);
     context.remote.setPlayer(this);
     context.$iosControls = computed(this._isIOSControls.bind(this));
-    context.textTracks = new TextTrackList();
+    context.textTracks = new TextTrackList(storage);
     context.textTracks[TextTrackSymbol._crossorigin] = this.$state.crossorigin;
     context.textRenderers = new TextRenderers(context);
     context.ariaKeys = {};
@@ -177,7 +184,8 @@ export class MediaPlayer
       context,
     );
 
-    new MediaLoadController(this.startLoading.bind(this));
+    new MediaLoadController('load', this.startLoading.bind(this));
+    new MediaLoadController('posterLoad', this.startLoadingPoster.bind(this));
   }
 
   protected override onSetup(): void {
@@ -240,6 +248,14 @@ export class MediaPlayer
     this.canPlayQueue._reset();
   }
 
+  private _computeMediaKey() {
+    const { storageKey, clipStartTime, clipEndTime } = this.$props,
+      { source } = this.$state;
+    return storageKey() && source().src
+      ? `${storageKey()}:${source().src}:${clipStartTime()}:${clipEndTime()}`
+      : null;
+  }
+
   private _skipTitleUpdate = false;
   private _watchTitle() {
     if (this._skipTitleUpdate) {
@@ -287,6 +303,9 @@ export class MediaPlayer
     }
 
     const $attrs: ElementAttributesRecord = {
+      'data-load': function (this: MediaPlayer) {
+        return this.$props.load();
+      },
       'data-captions': function (this: MediaPlayer) {
         const track = this.$state.textTrack();
         return !!track && isTrackCaptionKind(track);
@@ -298,8 +317,8 @@ export class MediaPlayer
         return this.controls.showing;
       },
       'data-buffering': function (this: MediaPlayer) {
-        const { canPlay, waiting } = this.$state;
-        return !canPlay() || waiting();
+        const { canLoad, canPlay, waiting } = this.$state;
+        return canLoad() && (!canPlay() || waiting());
       },
       'data-error': function (this: MediaPlayer) {
         const { error } = this.$state;
@@ -465,7 +484,8 @@ export class MediaPlayer
   }
 
   set muted(muted) {
-    this._queueMutedUpdate(muted);
+    const $props = this.$props as unknown as WriteSignalRecord<any>;
+    $props.muted.set(muted);
   }
 
   private _watchMuted() {
@@ -493,13 +513,16 @@ export class MediaPlayer
 
   private _queueCurrentTimeUpdate(time: number) {
     this.canPlayQueue._enqueue('currentTime', () => {
-      if (time === peek(this.$state.currentTime)) return;
+      const { currentTime, clipStartTime, seekableStart, seekableEnd } = this.$state;
+
+      if (time === peek(currentTime)) return;
+
       peek(() => {
         if (!this._provider) return;
 
         const boundTime = Math.min(
-          Math.max(this.$state.seekableStart() + 0.1, time),
-          this.$state.seekableEnd() - 0.1,
+          Math.max(seekableStart() + 0.1, time + clipStartTime()),
+          seekableEnd() - 0.1,
         );
 
         if (Number.isFinite(boundTime)) this._provider.setCurrentTime(boundTime);
@@ -513,7 +536,8 @@ export class MediaPlayer
   }
 
   set volume(volume) {
-    this._queueVolumeUpdate(volume);
+    const $props = this.$props as unknown as WriteSignalRecord<any>;
+    $props.volume.set(volume);
   }
 
   private _watchVolume() {
@@ -644,6 +668,16 @@ export class MediaPlayer
   @method
   startLoading(trigger?: Event): void {
     this._media.delegate._notify('can-load', undefined, trigger);
+  }
+
+  /**
+   * Called when the poster image can begin loading. Calling it more than once has no effect.
+   *
+   * @see {@link https://vidstack.io/docs/player/core-concepts/loading#loading-strategies}
+   */
+  @method
+  startLoadingPoster(trigger?: Event) {
+    this._media.delegate._notify('can-load-poster', undefined, trigger);
   }
 
   /**

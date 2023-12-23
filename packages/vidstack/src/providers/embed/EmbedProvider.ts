@@ -25,6 +25,7 @@ export abstract class EmbedProvider<Message> {
 
   constructor(protected readonly _iframe: HTMLIFrameElement) {
     _iframe.setAttribute('frameBorder', '0');
+    _iframe.setAttribute('aria-hidden', 'true');
 
     _iframe.setAttribute(
       'allow',
@@ -55,6 +56,7 @@ export abstract class EmbedProvider<Message> {
   }
 
   protected _postMessage(message: any, target?: string) {
+    if (__SERVER__) return;
     this._iframe.contentWindow?.postMessage(JSON.stringify(message), target ?? '*');
   }
 

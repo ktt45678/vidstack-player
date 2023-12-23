@@ -2,6 +2,8 @@ import * as React from 'react';
 
 import { createReactComponent, type ReactElementProps } from 'maverick.js/react';
 
+import type { PlayerSrc } from '../source';
+import { playerCallbacks } from './player-callbacks';
 import { MediaPlayerInstance } from './primitives/instances';
 import { Primitive } from './primitives/nodes';
 
@@ -10,29 +12,17 @@ import { Primitive } from './primitives/nodes';
  * -----------------------------------------------------------------------------------------------*/
 
 const MediaPlayerBridge = createReactComponent(MediaPlayerInstance, {
-  events: [
-    'onAbort',
-    'onControlsChange',
-    'onDurationChange',
-    'onEmptied',
-    'onError',
-    'onFindMediaPlayer',
-    'onOrientationChange',
-    'onPause',
-    'onPlaysinlineChange',
-    'onPosterChange',
-    'onProgress',
-    'onReplay',
-    'onStarted',
-    'onSuspend',
-    'onStalled',
-    'onWaiting',
-  ],
-  eventsRegex:
-    /^on(Can|Auto|Source|User|Fullscreen|End|Load|Play|Provider|Picture|Hls|Media|Live|Loop|Audio|Video|Time|TextTrack|Volume|Quality?|Rate|Seek|Stream|Destroy|Vds)/,
+  events: playerCallbacks,
+  eventsRegex: /^on(Hls|Media)/,
 });
 
-export interface MediaPlayerProps extends ReactElementProps<MediaPlayerInstance> {
+export interface MediaPlayerProps extends Omit<ReactElementProps<MediaPlayerInstance>, 'src'> {
+  /**
+   * The URL or object of the current media resource/s to be considered for playback.
+   *
+   * @see {@link https://vidstack.io/docs/player/core-concepts/loading#loading-source}
+   */
+  src?: PlayerSrc;
   aspectRatio?: string;
   asChild?: boolean;
   children: React.ReactNode;
@@ -58,6 +48,7 @@ const MediaPlayer = React.forwardRef<MediaPlayerInstance, MediaPlayerProps>(
     return (
       <MediaPlayerBridge
         {...props}
+        src={props.src as any}
         ref={forwardRef}
         style={{
           aspectRatio,

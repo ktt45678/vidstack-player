@@ -26,8 +26,7 @@ import { isHLSSupported } from '../../utils/support';
 
 let warned = __DEV__ ? new Set<any>() : undefined;
 
-const SETUP = Symbol(__DEV__ ? 'SETUP' : 0),
-  sourceTypes = new Map<string, string>();
+const sourceTypes = new Map<string, string>();
 
 export class SourceSelection {
   private _initialize = false;
@@ -41,6 +40,7 @@ export class SourceSelection {
     private _domSources: ReadSignal<MediaSrc[]>,
     private _media: MediaContext,
     private _loader: WriteSignal<MediaProviderLoader | null>,
+    customLoaders: MediaProviderLoader[] = [],
   ) {
     const HLS_LOADER = new HLSProviderLoader(),
       DASH_LOADER = new DashProviderLoader(),
@@ -52,8 +52,8 @@ export class SourceSelection {
 
     this._loaders = computed<MediaProviderLoader[]>(() => {
       return _media.$props.preferNativeHLS()
-        ? [VIDEO_LOADER, AUDIO_LOADER, DASH_LOADER, HLS_LOADER, ...EMBED_LOADERS]
-        : [DASH_LOADER, HLS_LOADER, VIDEO_LOADER, AUDIO_LOADER, ...EMBED_LOADERS];
+        ? [VIDEO_LOADER, AUDIO_LOADER, DASH_LOADER, HLS_LOADER, ...EMBED_LOADERS, ...customLoaders]
+        : [DASH_LOADER, HLS_LOADER, VIDEO_LOADER, AUDIO_LOADER, ...EMBED_LOADERS, ...customLoaders];
     });
 
     const { $state } = _media;
@@ -86,6 +86,7 @@ export class SourceSelection {
     effect(this._onSourceChange.bind(this));
     effect(this._onSetup.bind(this));
     effect(this._onLoadSource.bind(this));
+    effect(this._onLoadPoster.bind(this));
   }
 
   private _onSourcesChange() {
@@ -177,6 +178,7 @@ export class SourceSelection {
   }
 
   protected _notifyLoaderChange(loader: MediaProviderLoader | null) {
+    this._media.$providerSetup.set(false);
     this._notify('provider-change', null);
     loader && peek(() => loader!.preconnect?.(this._media));
     this._loader.set(loader);
@@ -185,11 +187,11 @@ export class SourceSelection {
 
   private _onSetup() {
     const provider = this._media.$provider();
-    if (!provider || provider[SETUP]) return;
+    if (!provider || peek(this._media.$providerSetup)) return;
 
     if (this._media.$state.canLoad()) {
       scoped(() => provider.setup(this._media), provider.scope);
-      provider[SETUP] = true;
+      this._media.$providerSetup.set(true);
       return;
     }
 
@@ -197,6 +199,8 @@ export class SourceSelection {
   }
 
   private _onLoadSource() {
+    if (!this._media.$providerSetup()) return;
+
     const provider = this._media.$provider(),
       source = this._media.$state.source(),
       crossorigin = peek(this._media.$state.crossorigin);
@@ -240,11 +244,33 @@ export class SourceSelection {
       }
     }
   }
+
+  private _onLoadPoster() {
+    const loader = this._loader(),
+      { source, canLoadPoster } = this._media.$state;
+
+    if (!loader || !loader.loadPoster || !source() || !canLoadPoster()) return;
+
+    const abort = new AbortController();
+
+    loader
+      .loadPoster(source(), this._media, abort)
+      .then((url) => {
+        this._notify('poster-change', url || '');
+      })
+      .catch(() => {
+        this._notify('poster-change', '');
+      });
+
+    return () => {
+      abort.abort();
+    };
+  }
 }
 
 function normalizeSrc(src: MediaPlayerProps['src']): MediaSrc[] {
   return (isArray(src) ? src : [!isString(src) && 'src' in src ? src : { src }]).map(
-    ({ src, type, provider }) => ({
+    ({ src, type, provider, ...props }) => ({
       src,
       type:
         type ??
@@ -257,6 +283,7 @@ function normalizeSrc(src: MediaPlayerProps['src']): MediaSrc[] {
               ? 'video/vimeo'
               : '?'),
       provider: provider,
+      ...props,
     }),
   );
 }

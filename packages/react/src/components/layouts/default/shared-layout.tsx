@@ -17,6 +17,7 @@ import { usePlaybackRateOptions } from '../../../hooks/options/use-playback-rate
 import { useVideoQualityOptions } from '../../../hooks/options/use-video-quality-options';
 import { useMediaState } from '../../../hooks/use-media-state';
 import { usePlayerQuery } from '../../../hooks/use-player-query';
+import { isRemotionSource } from '../../../providers/remotion/type-check';
 import type { PrimitivePropsWithRef } from '../../primitives/nodes';
 import { CaptionButton } from '../../ui/buttons/caption-button';
 import { FullscreenButton } from '../../ui/buttons/fullscreen-button';
@@ -32,8 +33,10 @@ import * as VolumeSliderBase from '../../ui/sliders/volume-slider';
 import * as ThumbnailBase from '../../ui/thumbnail';
 import { Time } from '../../ui/time';
 import * as TooltipBase from '../../ui/tooltip';
+import { RemotionSliderThumbnail, RemotionThumbnail } from '../remotion-ui';
 import { DefaultLayoutContext, useDefaultLayoutLang } from './context';
 import type { DefaultLayoutIcon, DefaultLayoutIcons } from './icons';
+import { slot, type DefaultLayoutMenuSlotName, type Slots } from './slots';
 
 /* -------------------------------------------------------------------------------------------------
  * Types
@@ -47,13 +50,14 @@ interface DefaultMediaMenuProps {
   tooltip: TooltipBase.ContentProps['placement'];
   placement: MenuBase.ContentProps['placement'];
   portalClass?: string;
+  slots?: Slots<DefaultLayoutMenuSlotName>;
 }
 
 /* -------------------------------------------------------------------------------------------------
  * DefaultMediaLayout
  * -----------------------------------------------------------------------------------------------*/
 
-export interface DefaultMediaLayoutProps extends PrimitivePropsWithRef<'div'> {
+export interface DefaultMediaLayoutProps<Slots = unknown> extends PrimitivePropsWithRef<'div'> {
   children?: React.ReactNode;
   /**
    * The icons to be rendered and displayed inside the layout.
@@ -110,11 +114,22 @@ export interface DefaultMediaLayoutProps extends PrimitivePropsWithRef<'div'> {
    * @defaultValue false
    */
   noModal?: boolean;
+  /**
+   * Provide additional content to be inserted in specific positions.
+   */
+  slots?: Slots;
+  /**
+   * The minimum width to start displaying slider chapters when available.
+   *
+   * @defaultValue 600
+   */
+  sliderChaptersMinWidth?: number;
 }
 
 export interface CreateDefaultMediaLayout {
   type: 'audio' | 'video';
   smLayoutWhen: string;
+  LoadLayout: React.FC;
   SmallLayout: React.FC;
   LargeLayout: React.FC;
   UnknownStreamType?: React.FC;
@@ -123,6 +138,7 @@ export interface CreateDefaultMediaLayout {
 export function createDefaultMediaLayout({
   type,
   smLayoutWhen,
+  LoadLayout,
   SmallLayout,
   LargeLayout,
   UnknownStreamType,
@@ -140,18 +156,24 @@ export function createDefaultMediaLayout({
         noModal = false,
         menuGroup = 'bottom',
         hideQualityBitrate = false,
+        sliderChaptersMinWidth = 600,
+        slots,
         children,
         ...props
       },
       forwardRef,
     ) => {
-      const $canLoad = useMediaState('canLoad'),
+      const media = useReactContext(mediaContext)!,
+        $load = useSignal(media.$props.load),
+        $canLoad = useMediaState('canLoad'),
         $viewType = useMediaState('viewType'),
         $streamType = useMediaState('streamType'),
         isMatch = $viewType === type,
         isForcedLayout = typeof smallLayoutWhen === 'boolean',
         isSmallLayoutMatch = usePlayerQuery(isString(smallLayoutWhen) ? smallLayoutWhen : ''),
-        isSmallLayout = isForcedLayout ? smallLayoutWhen : isSmallLayoutMatch;
+        isSmallLayout = isForcedLayout ? smallLayoutWhen : isSmallLayoutMatch,
+        isLoadLayout = $load === 'play' && !$canLoad,
+        canRender = $canLoad || isForcedLayout || isLoadLayout;
       return (
         <div
           {...props}
@@ -160,7 +182,8 @@ export function createDefaultMediaLayout({
           data-size={isSmallLayout ? 'sm' : null}
           ref={forwardRef}
         >
-          {($canLoad || isForcedLayout) && isMatch ? (
+          {}
+          {canRender && isMatch ? (
             <DefaultLayoutContext.Provider
               value={{
                 thumbnails,
@@ -171,10 +194,14 @@ export function createDefaultMediaLayout({
                 hideQualityBitrate,
                 noModal,
                 menuGroup,
+                slots,
+                sliderChaptersMinWidth,
                 Icons: icons,
               }}
             >
-              {$streamType === 'unknown' ? (
+              {isLoadLayout ? (
+                <LoadLayout />
+              ) : $streamType === 'unknown' ? (
                 UnknownStreamType ? (
                   <UnknownStreamType />
                 ) : null
@@ -408,12 +435,17 @@ export { DefaultVolumeSlider };
  * -----------------------------------------------------------------------------------------------*/
 
 function DefaultTimeSlider() {
-  const width = useMediaState('width'),
-    { thumbnails } = React.useContext(DefaultLayoutContext),
-    label = useDefaultLayoutLang('Seek');
+  const $src = useMediaState('currentSrc'),
+    width = useMediaState('width'),
+    { thumbnails, sliderChaptersMinWidth } = React.useContext(DefaultLayoutContext),
+    label = useDefaultLayoutLang('Seek'),
+    $RemotionSliderThumbnail = useSignal(RemotionSliderThumbnail);
   return (
     <TimeSliderBase.Root className="vds-time-slider vds-slider" aria-label={label}>
-      <TimeSliderBase.Chapters className="vds-slider-chapters" disabled={width < 768}>
+      <TimeSliderBase.Chapters
+        className="vds-slider-chapters"
+        disabled={width < sliderChaptersMinWidth}
+      >
         {(cues, forwardRef) =>
           cues.map((cue) => (
             <div className="vds-slider-chapter" key={cue.startTime} ref={forwardRef}>
@@ -426,12 +458,16 @@ function DefaultTimeSlider() {
       </TimeSliderBase.Chapters>
       <TimeSliderBase.Thumb className="vds-slider-thumb" />
       <TimeSliderBase.Preview className="vds-slider-preview">
-        <TimeSliderBase.Thumbnail.Root
-          src={thumbnails}
-          className="vds-slider-thumbnail vds-thumbnail"
-        >
-          <TimeSliderBase.Thumbnail.Img />
-        </TimeSliderBase.Thumbnail.Root>
+        {thumbnails ? (
+          <TimeSliderBase.Thumbnail.Root
+            src={thumbnails}
+            className="vds-slider-thumbnail vds-thumbnail"
+          >
+            <TimeSliderBase.Thumbnail.Img />
+          </TimeSliderBase.Thumbnail.Root>
+        ) : $RemotionSliderThumbnail && isRemotionSource($src) ? (
+          <$RemotionSliderThumbnail className="vds-slider-thumbnail vds-thumbnail" />
+        ) : null}
         <TimeSliderBase.ChapterTitle className="vds-slider-chapter-title" />
         <TimeSliderBase.Value className="vds-slider-value" />
       </TimeSliderBase.Preview>
@@ -475,12 +511,18 @@ export { DefaultLiveButton };
  * DefaultTimeGroup
  * -----------------------------------------------------------------------------------------------*/
 
-function DefaultTimeGroup() {
+interface DefaultTimeGroupSlots {
+  currentTime?: React.ReactNode;
+  timeSeparator?: React.ReactNode;
+  endTime?: React.ReactNode;
+}
+
+function DefaultTimeGroup({ slots }: { slots?: DefaultTimeGroupSlots }) {
   return (
     <div className="vds-time-group">
-      <Time className="vds-time" type="current" />
-      <div className="vds-time-divider">/</div>
-      <Time className="vds-time" type="duration" />
+      {slot(slots, 'currentTime', <Time className="vds-time" type="current" />)}
+      {slot(slots, 'timeSeparator', <div className="vds-time-divider">/</div>)}
+      {slot(slots, 'endTime', <Time className="vds-time" type="duration" />)}
     </div>
   );
 }
@@ -492,9 +534,17 @@ export { DefaultTimeGroup };
  * DefaultTimeInfo
  * -----------------------------------------------------------------------------------------------*/
 
-function DefaultTimeInfo() {
+interface DefaultTimeInfoSlots extends DefaultTimeGroupSlots {
+  liveButton?: React.ReactNode;
+}
+
+function DefaultTimeInfo({ slots }: { slots?: DefaultTimeInfoSlots }) {
   const live = useMediaState('live');
-  return live ? <DefaultLiveButton /> : <DefaultTimeGroup />;
+  return live ? (
+    slot(slots, 'liveButton', <DefaultLiveButton />)
+  ) : (
+    <DefaultTimeGroup slots={slots} />
+  );
 }
 
 DefaultTimeInfo.displayName = 'DefaultTimeInfo';
@@ -511,8 +561,10 @@ function DefaultChaptersMenu({ tooltip, placement, portalClass }: DefaultMediaMe
     options = useChapterOptions(),
     disabled = !options.length,
     { thumbnails } = React.useContext(DefaultLayoutContext),
+    $src = useMediaState('currentSrc'),
     $viewType = useMediaState('viewType'),
-    $offset = !isSmallLayout && menuGroup === 'bottom' && $viewType === 'video' ? 26 : 0;
+    $offset = !isSmallLayout && menuGroup === 'bottom' && $viewType === 'video' ? 26 : 0,
+    $RemotionThumbnail = useSignal(RemotionThumbnail);
 
   const Content = (
     <MenuBase.Content
@@ -523,7 +575,7 @@ function DefaultChaptersMenu({ tooltip, placement, portalClass }: DefaultMediaMe
       <MenuBase.RadioGroup
         className="vds-chapters-radio-group vds-radio-group"
         value={options.selectedValue}
-        data-thumbnails={!!thumbnails}
+        data-thumbnails={thumbnails ? '' : null}
       >
         {options.map(
           ({ cue, label, value, startTimeText, durationText, select, setProgressVar }) => (
@@ -534,9 +586,13 @@ function DefaultChaptersMenu({ tooltip, placement, portalClass }: DefaultMediaMe
               onSelect={select}
               ref={setProgressVar}
             >
-              <ThumbnailBase.Root src={thumbnails} className="vds-thumbnail" time={cue.startTime}>
-                <ThumbnailBase.Img />
-              </ThumbnailBase.Root>
+              {thumbnails ? (
+                <ThumbnailBase.Root src={thumbnails} className="vds-thumbnail" time={cue.startTime}>
+                  <ThumbnailBase.Img />
+                </ThumbnailBase.Root>
+              ) : $RemotionThumbnail && isRemotionSource($src) ? (
+                <$RemotionThumbnail className="vds-thumbnail" frame={cue.startTime * $src.fps!} />
+              ) : null}
               <div className="vds-chapter-radio-content">
                 <span className="vds-chapter-radio-label">{label}</span>
                 <span className="vds-chapter-radio-start-time">{startTimeText}</span>
@@ -582,7 +638,7 @@ export { DefaultChaptersMenu };
  * DefaultSettingsMenu
  * -----------------------------------------------------------------------------------------------*/
 
-function DefaultSettingsMenu({ tooltip, placement, portalClass }: DefaultMediaMenuProps) {
+function DefaultSettingsMenu({ tooltip, placement, portalClass, slots }: DefaultMediaMenuProps) {
   const { $state } = useReactContext(mediaContext)!,
     { showMenuDelay, Icons, isSmallLayout, menuGroup, noModal } =
       React.useContext(DefaultLayoutContext),
@@ -613,10 +669,12 @@ function DefaultSettingsMenu({ tooltip, placement, portalClass }: DefaultMediaMe
       placement={placement}
       offset={$offset}
     >
+      {slot(slots, 'settingsMenuStartItems', null)}
       <DefaultAudioSubmenu />
       <DefaultSpeedSubmenu />
       <DefaultQualitySubmenu />
       <DefaultCaptionSubmenu />
+      {slot(slots, 'settingsMenuEndItems', null)}
     </MenuBase.Content>
   );
 

@@ -8,7 +8,7 @@ import {
   signal,
   useContext,
 } from 'maverick.js';
-import { DOMEvent, isNumber, setStyle } from 'maverick.js/std';
+import { DOMEvent, isNumber, listenEvent, setStyle } from 'maverick.js/std';
 import type { VTTCue } from 'media-captions';
 
 import { useMediaContext, type MediaContext } from '../../../../core/api/media-context';
@@ -41,6 +41,7 @@ export class ChaptersRadioGroup extends Component<
 
   private _index = signal(0);
   private _track = signal<TextTrack | null>(null);
+  private _cues = signal<readonly VTTCue[]>([]);
 
   @prop
   get value() {
@@ -49,8 +50,7 @@ export class ChaptersRadioGroup extends Component<
 
   @prop
   get disabled() {
-    const track = this._track();
-    return !track || !track.cues.length;
+    return !this._cues()?.length;
   }
 
   constructor() {
@@ -80,14 +80,17 @@ export class ChaptersRadioGroup extends Component<
 
   @method
   getOptions(): ChaptersRadioOption[] {
-    const track = this._track();
-    if (!track) return [];
-    return track.cues.map((cue, i) => ({
+    const { clipStartTime, clipEndTime } = this._media.$state,
+      startTime = clipStartTime(),
+      endTime = clipEndTime() || Infinity;
+    return this._cues().map((cue, i) => ({
       cue,
       value: i + '',
       label: cue.text,
-      startTime: formatTime(cue.startTime, false),
-      duration: formatSpokenTime(cue.endTime - cue.startTime),
+      startTime: formatTime(Math.max(0, cue.startTime - startTime), false),
+      duration: formatSpokenTime(
+        Math.min(endTime, cue.endTime) - Math.max(startTime, cue.startTime),
+      ),
     }));
   }
 
@@ -99,7 +102,32 @@ export class ChaptersRadioGroup extends Component<
     effect(this._watchValue.bind(this));
     effect(this._watchCurrentTime.bind(this));
     effect(this._watchControllerDisabled.bind(this));
+    effect(this._watchTrack.bind(this));
     observeActiveTextTrack(this._media.textTracks, 'chapters', this._track.set);
+  }
+
+  protected _watchTrack() {
+    const track = this._track();
+    if (!track) return;
+
+    const onCuesChange = this._onCuesChange.bind(this, track);
+
+    onCuesChange();
+    listenEvent(track, 'add-cue', onCuesChange);
+    listenEvent(track, 'remove-cue', onCuesChange);
+
+    return () => {
+      this._cues.set([]);
+    };
+  }
+
+  protected _onCuesChange(track: TextTrack) {
+    const { clipStartTime, clipEndTime } = this._media.$state,
+      startTime = clipStartTime(),
+      endTime = clipEndTime() || Infinity;
+    this._cues.set(
+      [...track.cues].filter((cue) => cue.startTime <= endTime && cue.endTime >= startTime),
+    );
   }
 
   private _watchValue() {
@@ -116,16 +144,21 @@ export class ChaptersRadioGroup extends Component<
       return;
     }
 
-    const { currentTime } = this._media.$state,
-      time = currentTime(),
-      activeCueIndex = track.cues.findIndex((cue) => isCueActive(cue, time));
+    const { realCurrentTime, clipStartTime, clipEndTime } = this._media.$state,
+      startTime = clipStartTime(),
+      endTime = clipEndTime() || Infinity,
+      time = realCurrentTime(),
+      activeCueIndex = this._cues().findIndex((cue) => isCueActive(cue, time));
 
     this._index.set(activeCueIndex);
 
     if (activeCueIndex >= 0) {
-      const cue = track.cues[activeCueIndex],
+      const cue = this._cues()[activeCueIndex],
         radio = this.el!.querySelector(`[aria-checked='true']`),
-        playedPercent = ((time - cue.startTime) / (cue.endTime - cue.startTime)) * 100;
+        cueStartTime = Math.max(startTime, cue.startTime),
+        duration = Math.min(endTime, cue.endTime) - cueStartTime,
+        playedPercent = (Math.max(0, time - cueStartTime) / duration) * 100;
+
       radio && setStyle(radio as HTMLElement, '--progress', round(playedPercent, 3) + '%');
     }
   }
@@ -142,11 +175,12 @@ export class ChaptersRadioGroup extends Component<
     if (this.disabled || !trigger) return;
 
     const index = +value,
-      cues = this._track()?.cues;
+      cues = this._cues(),
+      { clipStartTime } = this._media.$state;
 
     if (isNumber(index) && cues?.[index]) {
       this._index.set(index);
-      this._media.remote.seek(cues[index].startTime, trigger);
+      this._media.remote.seek(cues[index].startTime - clipStartTime(), trigger);
       this.dispatch('change', { detail: cues[index], trigger });
     }
   }

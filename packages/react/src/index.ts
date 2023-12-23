@@ -2,6 +2,7 @@ export * from 'vidstack';
 export * from './components/primitives/instances';
 
 // Core
+export type { PlayerSrc } from './source';
 export { type MediaPlayerProps, MediaPlayer } from './components/player';
 export { type MediaProviderProps, MediaProvider } from './components/provider';
 export { type IconProps, Icon, type IconComponent } from './icon';
@@ -113,6 +114,7 @@ export * from './hooks/use-media-state';
 export * from './hooks/use-thumbnails';
 export * from './hooks/use-slider-state';
 export * from './hooks/use-slider-preview';
+export * from './hooks/use-text-cues';
 export * from './hooks/use-active-text-cues';
 export * from './hooks/use-active-text-track';
 export * from './hooks/create-text-track';

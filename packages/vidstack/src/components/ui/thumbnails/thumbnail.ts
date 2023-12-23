@@ -15,6 +15,7 @@ export interface ThumbnailState {
   loading: boolean;
   error: ErrorEvent | null;
   hidden: boolean;
+  preloadedSrc: string[];
 }
 
 /**
@@ -30,6 +31,7 @@ export class Thumbnail extends Component<ThumbnailProps, ThumbnailState> {
     src: '',
     time: 0,
     cdnUrl: null,
+    cdnPreload: false,
   };
 
   static state = new State<ThumbnailState>({
@@ -40,6 +42,7 @@ export class Thumbnail extends Component<ThumbnailProps, ThumbnailState> {
     loading: false,
     error: null,
     hidden: false,
+    preloadedSrc: [],
   });
 
   protected _media!: MediaContext;
@@ -162,10 +165,24 @@ export class Thumbnail extends Component<ThumbnailProps, ThumbnailState> {
       splitBaseURL = baseURL.substring(0, baseURL.lastIndexOf('/') + 1);
 
     const cdnURL = this._getCDNUrl();
+    const cdnPreload = this._getCDNPreload();
     const srcURL = splitBaseURL + src;
 
-    if (cdnURL) return cdnURL.replace('{url}', encodeURIComponent(srcURL));
-    return srcURL;
+    if (!cdnURL) return srcURL;
+
+    // CDN URL
+    const cdnSrcURL = cdnURL.replace('{url}', encodeURIComponent(srcURL));
+    // Enable CDN URL preload
+    if (cdnPreload) {
+      const preloadedSrc = this.$state.preloadedSrc();
+      // Return cdn url if it is preloaded
+      if (preloadedSrc.includes(src)) return cdnSrcURL;
+      // Request to preload src, then return the original src
+      fetch(cdnSrcURL, { method: 'HEAD' }).catch((error) => this._onError(error));
+      this.$state.preloadedSrc.set([...preloadedSrc, src]);
+      return srcURL;
+    }
+    return cdnSrcURL;
   }
 
   private _resolveThumbnailCoords(coords: string) {
@@ -222,6 +239,10 @@ export class Thumbnail extends Component<ThumbnailProps, ThumbnailState> {
   protected _getCDNUrl() {
     return this.$props.cdnUrl();
   }
+
+  protected _getCDNPreload() {
+    return this.$props.cdnPreload();
+  }
 }
 
 export interface ThumbnailProps {
@@ -238,6 +259,10 @@ export interface ThumbnailProps {
    * Optional cdn url to apply image optimizations
    */
   cdnUrl: string | null;
+  /**
+   * Load original src for the first time, but request to cache the src with cdn in the background
+   */
+  cdnPreload: boolean;
 }
 
 export interface ThumbnailCoords {
