@@ -1,5 +1,5 @@
 import { Component, effect, peek, State } from 'maverick.js';
-import { animationFrameThrottle, isNull, listenEvent } from 'maverick.js/std';
+import { animationFrameThrottle, isNull, isString, listenEvent } from 'maverick.js/std';
 import type { VTTCue } from 'media-captions';
 
 import { useMediaContext, type MediaContext } from '../../../core/api/media-context';
@@ -132,7 +132,12 @@ export class Thumbnail extends Component<ThumbnailProps, ThumbnailState> {
   private _onResolveThumbnail() {
     let { activeCue } = this.$state,
       cue = activeCue(),
-      baseURL = peek(this.$props.src);
+      srcProp = peek(this.$props.src),
+      baseURL = isString(srcProp)
+        ? srcProp
+        : srcProp.type !== 'cues'
+          ? srcProp.src
+          : srcProp.baseURL;
 
     if (!/^https?:/.test(baseURL)) {
       baseURL = location.href;
@@ -224,7 +229,7 @@ export interface ThumbnailProps {
    * The absolute or relative URL to a [WebVTT](https://developer.mozilla.org/en-US/docs/Web/API/WebVTT_API)
    * file resource.
    */
-  src: string;
+  src: string | ThumbnailSrc;
   /**
    * Finds, loads, and displays the first active thumbnail cue that's start/end times are in range.
    */
@@ -241,3 +246,16 @@ export interface ThumbnailCoords {
   x: number;
   y: number;
 }
+
+export type ThumbnailSrcString = {
+  src: string;
+  type: 'url';
+};
+
+export type ThumbnailSrcCues = {
+  src: VTTCue[];
+  baseURL: string;
+  type: 'cues';
+};
+
+export type ThumbnailSrc = ThumbnailSrcString | ThumbnailSrcCues;
