@@ -131,26 +131,6 @@ export class TextTrack extends EventsTarget<TextTrackEvents> {
           });
         }
       });
-    } else if (init.src && init.subtitleLoader && (init.type === 'srt' || init.type === 'vtt')) {
-      Promise.resolve(init.subtitleLoader(this)).then((content) => {
-        if (!content) {
-          this._errorState('Subtitle loaded error');
-          return;
-        }
-        this.content = content;
-        this.contentLoaded = true;
-        import('media-captions').then(({ parseText, VTTCue, VTTRegion }) => {
-          if (init.type === 'json') {
-            this._parseJSON(content, VTTCue, VTTRegion);
-          } else {
-            parseText(content, { type: init.type }).then(({ cues, regions }) => {
-              this._cues = cues;
-              this._regions = regions;
-              this._readyState();
-            });
-          }
-        });
-      });
     } else if (!init.src) this[TextTrackSymbol._readyState] = 2;
 
     if (__DEV__ && isTrackCaptionKind(this) && !this.label) {
@@ -249,28 +229,54 @@ export class TextTrack extends EventsTarget<TextTrackEvents> {
     this.dispatchEvent(new DOMEvent<void>('load-start'));
 
     try {
-      const { parseResponse, VTTCue, VTTRegion } = await import('media-captions'),
+      const { parseResponse, parseText, VTTCue, VTTRegion } = await import('media-captions'),
         crossorigin = this[TextTrackSymbol._crossorigin]?.();
 
-      const response = fetch(this.src, {
-        headers: this.type === 'json' ? { 'Content-Type': 'application/json' } : undefined,
-        credentials: getRequestCredentials(crossorigin),
-      });
-
-      if (this.type === 'json') {
-        this._parseJSON(await (await response).text(), VTTCue, VTTRegion);
-      } else {
-        const { errors, metadata, regions, cues } = await parseResponse(response, {
-          type: this.type,
-          encoding: this.encoding,
+      if (!this.subtitleLoader || typeof this.subtitleLoader !== 'function') {
+        const response = fetch(this.src, {
+          headers: this.type === 'json' ? { 'Content-Type': 'application/json' } : undefined,
+          credentials: getRequestCredentials(crossorigin),
         });
 
-        if (errors[0]?.code === 0) {
-          throw errors[0];
+        if (this.type === 'json') {
+          this._parseJSON(await (await response).text(), VTTCue, VTTRegion);
         } else {
-          this._metadata = metadata;
-          this._regions = regions;
-          this._cues = cues;
+          const { errors, metadata, regions, cues } = await parseResponse(response, {
+            type: this.type,
+            encoding: this.encoding,
+          });
+
+          if (errors[0]?.code === 0) {
+            throw errors[0];
+          } else {
+            this._metadata = metadata;
+            this._regions = regions;
+            this._cues = cues;
+          }
+        }
+      } else {
+        // Load using custom loader
+        const content = await Promise.resolve(this.subtitleLoader(this));
+        if (!content) {
+          throw new Error('Subtitle loaded error');
+        }
+        this.content = content;
+        this.contentLoaded = true;
+
+        if (this.type === 'json') {
+          this._parseJSON(content, VTTCue, VTTRegion);
+        } else {
+          const { errors, metadata, regions, cues } = await parseText(content, {
+            type: this.type,
+          });
+
+          if (errors[0]?.code === 0) {
+            throw errors[0];
+          } else {
+            this._metadata = metadata;
+            this._regions = regions;
+            this._cues = cues;
+          }
         }
       }
 

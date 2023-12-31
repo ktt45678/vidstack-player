@@ -49,6 +49,8 @@ export class LibASSTextRenderer implements TextRenderer {
     const disposeReadyEvent = listenEvent(this._instance, 'ready', () => {
       const canvas = this._instance?._canvas;
       if (canvas) canvas.style.pointerEvents = 'none';
+      if (this._instance && this.rendererConfig?.onSubtitleReady)
+        this.rendererConfig.onSubtitleReady(this._instance);
     });
 
     const disposeErrorEvent = listenEvent(this._instance, 'error', (event) => {
@@ -236,7 +238,13 @@ export interface LibASSConfig {
    *
    * @defaultValue "jassub-worker-legacy.js"
    */
-  legacyWorkerUrl?: string;
+  legacyWasmUrl?: string;
+  /**
+   * The URL of the modern worker WASM. This includes faster ASM instructions, but is only supported
+   * by newer browsers, disabled if the URL isn't defined.
+   *
+   */
+  modernWasmUrl?: string;
   /**
    * The URL of the subtitle file to play.
    *
@@ -292,11 +300,5 @@ export interface LibASSTextRendererConfig {
    * When changing track, destroy the previous instance and create a new one to free up resources.
    *
    */
-  changeInstanceOnTrackChange?: boolean;
-
-  /**
-   * When changing track, destroy the previous instance and create a new one to free up resources.
-   *
-   */
-  loadSubtitle?: (track: TextTrack) => Promise<string | null> | null;
+  onSubtitleReady?: (instance: LibASSInstance) => Promise<void> | void;
 }

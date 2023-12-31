@@ -178,8 +178,9 @@ export class Thumbnail extends Component<ThumbnailProps, ThumbnailState> {
       // Return cdn url if it is preloaded
       if (preloadedSrc.includes(src)) return cdnSrcURL;
       // Request to preload src, then return the original src
-      fetch(cdnSrcURL, { method: 'HEAD' }).catch((error) => this._onError(error));
-      this.$state.preloadedSrc.set([...preloadedSrc, src]);
+      fetch(cdnSrcURL, { method: 'HEAD' })
+        .then(() => this.$state.preloadedSrc.set([...preloadedSrc, src]))
+        .catch((error) => this._onError(error));
       return srcURL;
     }
     return cdnSrcURL;
