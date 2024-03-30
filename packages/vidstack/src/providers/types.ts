@@ -6,7 +6,6 @@ import type { MediaState } from '../core/api/player-state';
 import type { MediaType } from '../core/api/types';
 import type { FullscreenAdapter } from '../foundation/fullscreen/controller';
 import type { AudioProvider } from './audio/provider';
-import type { DASHProvider } from './dash/provider';
 import type { GoogleCastProvider } from './google-cast/provider';
 import type { HLSProvider } from './hls/provider';
 import type { VideoProvider } from './video/provider';
@@ -16,7 +15,6 @@ import type { YouTubeProvider } from './youtube/provider';
 export type AnyMediaProvider =
   | ({ type: 'audio' } & AudioProvider)
   | ({ type: 'video' } & VideoProvider)
-  | ({ type: 'dash' } & DASHProvider)
   | ({ type: 'hls' } & HLSProvider)
   | ({ type: 'youtube' } & YouTubeProvider)
   | ({ type: 'vimeo' } & VimeoProvider)
