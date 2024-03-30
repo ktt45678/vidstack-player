@@ -1,4 +1,5 @@
 import { Component, effect, onDispose, useContext, useState } from 'maverick.js';
+import { animationFrameThrottle } from 'maverick.js/std';
 
 import { Slider } from './slider/slider';
 import { sliderContext, type SliderContext } from './slider/slider-context';
@@ -50,20 +51,22 @@ export class SliderPreview extends Component<SliderPreviewProps> {
     onDispose(() => resize.disconnect());
   }
 
-  private _updatePlacement() {
+  private _updatePlacement = animationFrameThrottle(() => {
     const { _disabled, _orientation } = this._slider;
 
     if (_disabled()) return;
 
-    const el = this.el!,
+    const el = this.el,
       { offset, noClamp } = this.$props;
+
+    if (!el) return;
 
     updateSliderPreviewPlacement(el, {
       clamp: !noClamp(),
       offset: offset(),
       orientation: _orientation(),
     });
-  }
+  });
 }
 
 export function updateSliderPreviewPlacement(
@@ -78,7 +81,9 @@ export function updateSliderPreviewPlacement(
     orientation: SliderOrientation;
   },
 ) {
-  const { width, height } = el.getBoundingClientRect(),
+  const computedStyle = getComputedStyle(el),
+    width = parseFloat(computedStyle.width),
+    height = parseFloat(computedStyle.height),
     styles: Record<string, string | null> = {
       top: null,
       right: null,

@@ -1,6 +1,6 @@
 {
   "name": "@ktt45678/vidstack-workspace",
-  "version": "1.9.8-F1",
+  "version": "1.10.9",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -14,7 +14,7 @@
     "clean": "turbo run clean",
     "format": "turbo run format --parallel",
     "test": "turbo run test --parallel",
-    "preinstall": "npx only-allow pnpm && pnpx simple-git-hooks",
+    "preinstall": "npx only-allow pnpm",
     "release": "pnpm build && node .scripts/release.js --next",
     "release:dry": "pnpm run release --dry",
     "release:vidstack": "pnpm build:vidstack && node .scripts/release.js",

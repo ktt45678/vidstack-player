@@ -11,17 +11,12 @@ import {
   type SetTimelineContextValue,
   type TimelineContextValue,
 } from 'remotion';
-import {
-  TimeRange,
-  type MediaProviderAdapter,
-  type MediaSetupContext,
-  type MediaSrc,
-} from 'vidstack';
+import { TimeRange, type MediaContext, type MediaProviderAdapter, type Src } from 'vidstack';
 
 import { RemotionLayoutEngine } from './layout-engine';
 import { RemotionPlaybackEngine } from './playback-engine';
-import { isRemotionSource } from './type-check';
-import type { RemotionMediaResource } from './types';
+import { isRemotionSrc } from './type-check';
+import type { RemotionSrc } from './types';
 import { REMOTION_PROVIDER_ID, RemotionContextProvider } from './ui/context';
 import { ErrorBoundary } from './ui/error-boundary';
 import { validatePlaybackRate, validateRemotionResource } from './validate';
@@ -31,9 +26,9 @@ export class RemotionProvider implements MediaProviderAdapter {
 
   readonly scope = createScope();
 
-  protected _ctx!: MediaSetupContext;
-  protected _src = signal<RemotionMediaResource | null>(null);
+  protected _src = signal<RemotionSrc | null>(null);
   protected _setup = false;
+  protected _loadStart = false;
   protected _played = 0;
   protected _playedRange = new TimeRange(0, 0);
   protected _audio: any = null;
@@ -74,12 +69,14 @@ export class RemotionProvider implements MediaProviderAdapter {
     return this._frame();
   }
 
-  constructor(readonly container: HTMLElement) {
+  constructor(
+    readonly container: HTMLElement,
+    protected readonly _ctx: MediaContext,
+  ) {
     this._layoutEngine.setContainer(container);
   }
 
-  setup(ctx: MediaSetupContext) {
-    this._ctx = ctx;
+  setup() {
     effect(this._watchWaiting.bind(this));
     effect(this._watchMediaTags.bind(this));
     effect(this._watchMediaElements.bind(this));
@@ -197,8 +194,8 @@ export class RemotionProvider implements MediaProviderAdapter {
     const { fps } = this._src()!,
       frame = time * fps!;
 
-    this._setFrame({ [REMOTION_PROVIDER_ID]: frame });
     this._notify('seeking', time);
+    this._setFrame({ [REMOTION_PROVIDER_ID]: frame });
   }
 
   setVolume(value: React.SetStateAction<number>) {
@@ -229,17 +226,17 @@ export class RemotionProvider implements MediaProviderAdapter {
     this._notify('rate-change', rate);
   }
 
-  protected _getPlayedRange(currentTime: number) {
-    return this._played >= currentTime
+  protected _getPlayedRange(time: number) {
+    return this._played >= time
       ? this._playedRange
-      : (this._playedRange = new TimeRange(0, (this._played = currentTime)));
+      : (this._playedRange = new TimeRange(0, (this._played = time)));
   }
 
-  async loadSource(src: MediaSrc) {
-    if (!isRemotionSource(src)) return;
+  async loadSource(src: Src) {
+    if (!isRemotionSrc(src)) return;
 
     const onUserError = src.onError,
-      resolvedSrc: RemotionMediaResource = {
+      resolvedSrc: RemotionSrc = {
         compositionWidth: 1920,
         compositionHeight: 1080,
         fps: 30,
@@ -252,7 +249,7 @@ export class RemotionProvider implements MediaProviderAdapter {
         onError: (error) => {
           if (__DEV__) {
             this._ctx.logger
-              ?.errorGroup(error.message)
+              ?.errorGroup(`[vidstack] ${error.message}`)
               .labelledLog('Source', peek(this._src))
               .labelledLog('Error', error)
               .dispatch();
@@ -282,7 +279,7 @@ export class RemotionProvider implements MediaProviderAdapter {
     this.changeSrc(null);
   }
 
-  changeSrc(src: RemotionMediaResource | null) {
+  changeSrc(src: RemotionSrc | null) {
     this._playbackEngine?.destroy();
 
     this._played = 0;
@@ -315,13 +312,13 @@ export class RemotionProvider implements MediaProviderAdapter {
     if (!$src) {
       throw Error(
         __DEV__
-          ? '[vidstack]: attempting to render remotion provider without src'
-          : '[vidstack]: no src',
+          ? '[vidstack] attempting to render remotion provider without src'
+          : '[vidstack] no src',
       );
     }
 
     React.useEffect(() => {
-      if (!isRemotionSource($src)) return;
+      if (!isRemotionSrc($src)) return;
       validateRemotionResource($src);
 
       const rafId = requestAnimationFrame(() => {
@@ -330,13 +327,20 @@ export class RemotionProvider implements MediaProviderAdapter {
           this._setup = true;
         }
 
+        if (!this._loadStart) {
+          this._notify('load-start');
+          this._loadStart = true;
+        }
+
         this._discoverMediaElements();
         tick();
-
         if (!this._waiting()) this._ready($src);
       });
 
-      return () => cancelAnimationFrame(rafId);
+      return () => {
+        cancelAnimationFrame(rafId);
+        this._loadStart = false;
+      };
     }, [$src]);
 
     const Component = Internals.useLazyComponent({
@@ -367,7 +371,7 @@ export class RemotionProvider implements MediaProviderAdapter {
     );
   };
 
-  renderVideo = ({ src }: { src: RemotionMediaResource }): React.ReactNode => {
+  renderVideo = ({ src }: { src: RemotionSrc }): React.ReactNode => {
     const video = Internals.useVideo(),
       Video = video ? video.component : null,
       audioContext = React.useContext(Internals.SharedAudioContext);
@@ -398,11 +402,14 @@ export class RemotionProvider implements MediaProviderAdapter {
     return <React.Suspense fallback={LoadingContent}>{Content}</React.Suspense>;
   };
 
-  protected _ready(src: RemotionMediaResource | null) {
+  protected _ready(src: RemotionSrc | null) {
     if (!src) return;
 
     const { outFrame, inFrame, fps } = src,
       duration = (outFrame! - inFrame!) / fps!;
+
+    this._notify('loaded-metadata');
+    this._notify('loaded-data');
 
     this._ctx.delegate._ready({
       duration,

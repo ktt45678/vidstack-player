@@ -14,6 +14,14 @@ export type MediaStreamType =
   | 'll-live'
   | 'll-live:dvr';
 
+export type MediaCrossOrigin = '' | 'anonymous' | 'use-credentials';
+
+export type RemotePlaybackType = 'airplay' | 'google-cast' | 'none';
+
+export interface RemotePlaybackInfo {
+  deviceName?: string;
+}
+
 /**
  * Indicates the current view type which determines how the media will be presented.
  */
@@ -55,19 +63,9 @@ export type MediaErrorCode = 1 | 2 | 3 | 4;
 
 export interface MediaErrorDetail {
   message: string;
-  code: MediaErrorCode;
+  code?: MediaErrorCode;
   error?: Error;
   mediaError?: MediaError;
 }
 
 export type ParsedDashManifest = { [key: string]: any } & { protocol: 'DASH' };
-
-export type MediaResource = string | ParsedDashManifest | MediaStream | MediaSource | Blob;
-
-export interface MediaSrc<T = unknown> {
-  src: T;
-  type: string;
-  provider?: MediaSourceProvider;
-}
-
-export type MediaSourceProvider = 'video' | 'audio' | 'youtube' | 'vimeo' | 'dash' | 'hls';

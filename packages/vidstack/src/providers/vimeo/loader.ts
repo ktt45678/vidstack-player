@@ -1,12 +1,14 @@
 import { isString } from 'maverick.js/std';
 
-import type { MediaSrc, MediaType } from '../../core';
+import type { MediaType, Src } from '../../core';
 import type { MediaContext } from '../../core/api/media-context';
 import { preconnect } from '../../utils/network';
 import type { MediaProviderLoader } from '../types';
 import type { VimeoProvider } from './provider';
 
 export class VimeoProviderLoader implements MediaProviderLoader<VimeoProvider> {
+  readonly name = 'vimeo';
+
   target!: HTMLIFrameElement;
 
   preconnect(): void {
@@ -17,11 +19,11 @@ export class VimeoProviderLoader implements MediaProviderLoader<VimeoProvider> {
     ];
 
     for (const url of connections) {
-      preconnect(url, 'preconnect');
+      preconnect(url);
     }
   }
 
-  canPlay(src: MediaSrc): boolean {
+  canPlay(src: Src): boolean {
     return isString(src.src) && src.type === 'video/vimeo';
   }
 
@@ -40,21 +42,17 @@ export class VimeoProviderLoader implements MediaProviderLoader<VimeoProvider> {
       );
     }
 
-    return new (await import('./provider')).VimeoProvider(this.target);
+    return new (await import('./provider')).VimeoProvider(this.target, ctx);
   }
 
-  async loadPoster(
-    src: MediaSrc,
-    ctx: MediaContext,
-    abort: AbortController,
-  ): Promise<string | null> {
+  async loadPoster(src: Src, ctx: MediaContext, abort: AbortController): Promise<string | null> {
     const { resolveVimeoVideoId, getVimeoVideoInfo } = await import('./utils');
 
     if (!isString(src.src)) return null;
 
     const { videoId } = resolveVimeoVideoId(src.src);
     if (videoId) {
-      return getVimeoVideoInfo(videoId, abort).then((info) => info.poster);
+      return getVimeoVideoInfo(videoId, abort).then((info) => (info ? info.poster : null));
     }
 
     return null;

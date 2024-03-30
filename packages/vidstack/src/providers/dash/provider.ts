@@ -1,11 +1,11 @@
 import { peek, type Dispose } from 'maverick.js';
 import { isString } from 'maverick.js/std';
 
-import type { MediaResource, MediaSrc } from '../../core/api/types';
+import type { Src } from '../../core/api/src-types';
 import { isParsedManifest } from '../../utils/mime';
 import { preconnect } from '../../utils/network';
-import { isDASHSupported } from '../../utils/support';
-import type { MediaProviderAdapter, MediaSetupContext } from '../types';
+import { isDashSupported } from '../../utils/support';
+import type { MediaProviderAdapter } from '../types';
 import { VideoProvider } from '../video/provider';
 import { DASHController } from './dash';
 import { DASHLibLoader } from './lib-loader';
@@ -35,7 +35,7 @@ export class DASHProvider extends VideoProvider implements MediaProviderAdapter 
   protected override $$PROVIDER_TYPE = 'DASH';
 
   private _ctor: DASHConstructor | null = null;
-  private readonly _controller = new DASHController(this.video);
+  private readonly _controller = new DASHController(this.video, this._ctx);
 
   /**
    * The `dash.js` constructor.
@@ -54,7 +54,7 @@ export class DASHProvider extends VideoProvider implements MediaProviderAdapter 
   /**
    * Whether `dash.js` is supported in this environment.
    */
-  static supported = isDASHSupported();
+  static supported = isDashSupported();
 
   override get type() {
     return 'dash';
@@ -64,9 +64,7 @@ export class DASHProvider extends VideoProvider implements MediaProviderAdapter 
     return true;
   }
 
-  protected _library: DASHLibrary = `${JS_DELIVR_CDN}/npm/dashjs@^4.7/dist/dash.all${
-    __DEV__ ? '.debug.js' : '.min.js'
-  }`;
+  protected _library: DASHLibrary = `${JS_DELIVR_CDN}/npm/dashjs@^4.7/dist/dash.all${__DEV__ ? '.debug.js' : '.min.js'}`;
 
   /**
    * The `dash.js` configuration object.
@@ -98,22 +96,22 @@ export class DASHProvider extends VideoProvider implements MediaProviderAdapter 
     preconnect(this._library);
   }
 
-  override setup(ctx: MediaSetupContext) {
-    super.setup(ctx);
-    new DASHLibLoader(this._library, ctx, (ctor) => {
+  override setup() {
+    super.setup();
+    new DASHLibLoader(this._library, this._ctx, (ctor) => {
       this._ctor = ctor;
-      this._controller.setup(ctor, ctx);
-      ctx.delegate._notify('provider-setup', this);
-      const src = <MediaSrc<MediaResource>>peek(ctx.$state.source);
+      this._controller.setup(ctor);
+      this._ctx.delegate._notify('provider-setup', this);
+      const src = peek(this._ctx.$state.source);
       if (src) this.loadSource(src);
     });
   }
 
-  override async loadSource(src: MediaSrc<MediaResource>, preload?: HTMLMediaElement['preload']) {
+  override async loadSource(src: Src, preload?: HTMLMediaElement['preload']) {
     if (!isString(src.src) && !isParsedManifest(src.src)) return;
     this._media.preload = preload || '';
     this._controller.instance?.attachSource(src.src);
-    this._currentSrc = src;
+    this._currentSrc = src as Src<string>;
   }
 
   /**

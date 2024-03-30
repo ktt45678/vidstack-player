@@ -1,18 +1,18 @@
-import type { MediaSrc } from '../../core';
+import type { Src } from '../../core';
 import { isDashSrc } from '../../utils/mime';
-import { isDASHSupported } from '../../utils/support';
+import { isDashSupported } from '../../utils/support';
 import type { MediaProviderLoader } from '../types';
 import { VideoProviderLoader } from '../video/loader';
 import type { DASHProvider } from './provider';
 
-export class DashProviderLoader
+export class DASHProviderLoader
   extends VideoProviderLoader
   implements MediaProviderLoader<DASHProvider>
 {
-  static supported = isDASHSupported();
+  static supported = isDashSupported();
 
-  override canPlay(src: MediaSrc) {
-    return DashProviderLoader.supported && isDashSrc(src);
+  override canPlay(src: Src) {
+    return DASHProviderLoader.supported && isDashSrc(src);
   }
 
   override async load(context) {

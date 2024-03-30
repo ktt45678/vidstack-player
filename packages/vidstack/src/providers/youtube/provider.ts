@@ -1,18 +1,11 @@
 import { createScope, effect, signal } from 'maverick.js';
-import {
-  isBoolean,
-  isNumber,
-  isObject,
-  isString,
-  noop,
-  type DeferredPromise,
-} from 'maverick.js/std';
+import { isBoolean, isNumber, isObject, isString, type DeferredPromise } from 'maverick.js/std';
 
-import { TimeRange, type MediaSrc } from '../../core';
+import { TimeRange, type MediaContext, type Src } from '../../core';
 import { preconnect } from '../../utils/network';
 import { timedPromise } from '../../utils/promise';
 import { EmbedProvider } from '../embed/EmbedProvider';
-import type { MediaProviderAdapter, MediaSetupContext } from '../types';
+import type { MediaProviderAdapter } from '../types';
 import type { YouTubeCommandArg } from './embed/command';
 import type { YouTubeMessage } from './embed/message';
 import type { YouTubeParams } from './embed/params';
@@ -39,19 +32,25 @@ export class YouTubeProvider
 
   readonly scope = createScope();
 
-  protected _ctx!: MediaSetupContext;
   protected _videoId = signal('');
   protected _state: YouTubePlayerStateValue = -1;
   protected _seekingTimer = -1;
   protected _pausedSeeking = false;
   protected _played = 0;
   protected _playedRange = new TimeRange(0, 0);
-  protected _currentSrc: MediaSrc<string> | null = null;
+  protected _currentSrc: Src<string> | null = null;
   protected _playPromise: DeferredPromise<void, string> | null = null;
   protected _pausePromise: DeferredPromise<void, string> | null = null;
 
   protected get _notify() {
     return this._ctx.delegate._notify;
+  }
+
+  constructor(
+    iframe: HTMLIFrameElement,
+    protected _ctx: MediaContext,
+  ) {
+    super(iframe);
   }
 
   /**
@@ -76,7 +75,7 @@ export class YouTubeProvider
    */
   cookies = false;
 
-  get currentSrc(): MediaSrc<string> | null {
+  get currentSrc(): Src<string> | null {
     return this._currentSrc;
   }
 
@@ -89,12 +88,11 @@ export class YouTubeProvider
   }
 
   preconnect() {
-    preconnect(this._getOrigin(), 'preconnect');
+    preconnect(this._getOrigin());
   }
 
-  override setup(ctx: MediaSetupContext) {
-    this._ctx = ctx;
-    super.setup(ctx);
+  override setup() {
+    super.setup();
     effect(this._watchVideoId.bind(this));
     this._notify('provider-setup', this);
   }
@@ -148,7 +146,7 @@ export class YouTubeProvider
     this._remote('setPlaybackRate', rate);
   }
 
-  async loadSource(src: MediaSrc) {
+  async loadSource(src: Src) {
     if (!isString(src.src)) {
       this._currentSrc = null;
       this._videoId.set('');
@@ -158,7 +156,7 @@ export class YouTubeProvider
     const videoId = resolveYouTubeVideoId(src.src);
     this._videoId.set(videoId ?? '');
 
-    this._currentSrc = src as MediaSrc<string>;
+    this._currentSrc = src as Src<string>;
   }
 
   protected override _getOrigin() {
@@ -176,12 +174,13 @@ export class YouTubeProvider
     }
 
     this._src.set(`${this._getOrigin()}/embed/${videoId}`);
+    this._notify('load-start');
   }
 
   protected override _buildParams(): YouTubeParams {
     const { keyDisabled } = this._ctx.$props,
       { $iosControls } = this._ctx,
-      { controls, muted, playsinline } = this._ctx.$state,
+      { controls, muted, playsInline } = this._ctx.$state,
       showControls = controls() || $iosControls();
     return {
       autoplay: 0,
@@ -195,7 +194,7 @@ export class YouTubeProvider
       hl: this.language,
       iv_load_policy: showControls ? 1 : 3,
       mute: muted() ? 1 : 0,
-      playsinline: playsinline() ? 1 : 0,
+      playsinline: playsInline() ? 1 : 0,
     };
   }
 
@@ -213,6 +212,8 @@ export class YouTubeProvider
   }
 
   protected _onReady(trigger: Event) {
+    this._notify('loaded-metadata');
+    this._notify('loaded-data');
     this._ctx.delegate._ready(undefined, trigger);
   }
 
@@ -228,10 +229,7 @@ export class YouTubeProvider
       boundTime = hasEnded ? duration() : time,
       detail = {
         currentTime: boundTime,
-        played:
-          this._played >= boundTime
-            ? this._playedRange
-            : (this._playedRange = new TimeRange(0, (this._played = time))),
+        played: this._getPlayedRange(boundTime),
       };
 
     this._notify('time-update', detail, trigger);
@@ -240,6 +238,12 @@ export class YouTubeProvider
     if (!hasEnded && Math.abs(boundTime - realCurrentTime()) > 1) {
       this._notify('seeking', boundTime, trigger);
     }
+  }
+
+  protected _getPlayedRange(time: number) {
+    return this._played >= time
+      ? this._playedRange
+      : (this._playedRange = new TimeRange(0, (this._played = time)));
   }
 
   protected _onProgress(buffered: number, seekable: TimeRange, trigger: Event) {
@@ -274,11 +278,14 @@ export class YouTubeProvider
       },
       paused() ? 100 : 0,
     );
+
+    this._pausedSeeking = false;
   }
 
   protected _onEnded(trigger: Event) {
     const { seeking } = this._ctx.$state;
     if (seeking()) this._onSeeked(trigger);
+    this._notify('pause', undefined, trigger);
     this._notify('end', undefined, trigger);
   }
 
@@ -335,13 +342,13 @@ export class YouTubeProvider
   protected override _onMessage({ info }: YouTubeMessage, event: MessageEvent) {
     if (!info) return;
 
-    const { title, intrinsicDuration: duration, playbackRate } = this._ctx.$state;
+    const { title, intrinsicDuration, playbackRate } = this._ctx.$state;
 
     if (isObject(info.videoData) && info.videoData.title !== title()) {
       this._notify('title-change', info.videoData.title, event);
     }
 
-    if (isNumber(info.duration) && info.duration !== duration()) {
+    if (isNumber(info.duration) && info.duration !== intrinsicDuration()) {
       if (isNumber(info.videoLoadedFraction)) {
         const buffered = info.progressState?.loaded ?? info.videoLoadedFraction * info.duration,
           seekable = new TimeRange(0, info.duration);
@@ -365,7 +372,7 @@ export class YouTubeProvider
       } = info.progressState;
       this._onTimeUpdate(current, event);
       this._onProgress(loaded, new TimeRange(seekableStart, seekableEnd), event);
-      if (_duration !== duration()) {
+      if (_duration !== intrinsicDuration()) {
         this._notify('duration-change', _duration, event);
       }
     }

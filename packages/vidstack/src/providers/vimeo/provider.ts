@@ -7,7 +7,7 @@ import {
   type DeferredPromise,
 } from 'maverick.js/std';
 
-import { TimeRange, type MediaSrc } from '../../core';
+import { TextTrack, TimeRange, type MediaContext, type Src } from '../../core';
 import { QualitySymbol } from '../../core/quality/symbols';
 import { ListSymbol } from '../../foundation/list/symbols';
 import { RAFLoop } from '../../foundation/observers/raf-loop';
@@ -15,7 +15,6 @@ import { coerceToError } from '../../utils/error';
 import { preconnect } from '../../utils/network';
 import { timedPromise } from '../../utils/promise';
 import { EmbedProvider } from '../embed/EmbedProvider';
-import type { MediaSetupContext } from '../types';
 import type { VimeoCommandArg, VimeoCommandData } from './embed/command';
 import {
   trackedVimeoEvents,
@@ -24,7 +23,7 @@ import {
   type VimeoEventPayload,
 } from './embed/event';
 import type { VimeoMessage } from './embed/message';
-import type { VimeoOEmbedData, VimeoQuality, VimeoVideoInfo } from './embed/misc';
+import type { VimeoChapter, VimeoQuality, VimeoVideoInfo } from './embed/misc';
 import type { VimeoParams } from './embed/params';
 import { getVimeoVideoInfo, resolveVimeoVideoId } from './utils';
 
@@ -54,7 +53,6 @@ export class VimeoProvider
 
   readonly scope = createScope();
 
-  protected _ctx!: MediaSetupContext;
   protected _played = 0;
   protected _playedRange = new TimeRange(0, 0);
   protected _seekableRange = new TimeRange(0, 0);
@@ -64,12 +62,20 @@ export class VimeoProvider
   protected _videoId = signal('');
   protected _pro = signal(false);
   protected _hash: string | null = null;
-  protected _currentSrc: MediaSrc<string> | null = null;
+  protected _currentSrc: Src<string> | null = null;
   protected _currentCue: VTTCue | null = null;
   protected _timeRAF = new RAFLoop(this._onAnimationFrame.bind(this));
+  private _chaptersTrack: TextTrack | null = null;
 
   protected get _notify() {
     return this._ctx.delegate._notify;
+  }
+
+  constructor(
+    iframe: HTMLIFrameElement,
+    protected _ctx: MediaContext,
+  ) {
+    super(iframe);
   }
 
   /**
@@ -88,7 +94,7 @@ export class VimeoProvider
     return 'vimeo';
   }
 
-  get currentSrc(): MediaSrc<string> | null {
+  get currentSrc(): Src<string> | null {
     return this._currentSrc;
   }
 
@@ -105,12 +111,11 @@ export class VimeoProvider
   }
 
   preconnect() {
-    preconnect(this._getOrigin(), 'preconnect');
+    preconnect(this._getOrigin());
   }
 
-  override setup(ctx: MediaSetupContext) {
-    this._ctx = ctx;
-    super.setup(ctx);
+  override setup() {
+    super.setup();
 
     effect(this._watchVideoId.bind(this));
     effect(this._watchVideoInfo.bind(this));
@@ -185,7 +190,7 @@ export class VimeoProvider
     this._remote('setPlaybackRate', rate);
   }
 
-  async loadSource(src: MediaSrc) {
+  async loadSource(src: Src) {
     if (!isString(src.src)) {
       this._currentSrc = null;
       this._hash = null;
@@ -197,7 +202,7 @@ export class VimeoProvider
     this._videoId.set(videoId ?? '');
     this._hash = hash ?? null;
 
-    this._currentSrc = src as MediaSrc<string>;
+    this._currentSrc = src as Src<string>;
   }
 
   protected _watchVideoId() {
@@ -211,6 +216,7 @@ export class VimeoProvider
     }
 
     this._src.set(`${this._getOrigin()}/video/${videoId}`);
+    this._notify('load-start');
   }
 
   protected _watchVideoInfo() {
@@ -229,11 +235,12 @@ export class VimeoProvider
       })
       .catch((e) => {
         promise.reject();
-        this._notify('error', {
-          message: `Failed to fetch vimeo video info for id \`${videoId}\`.`,
-          code: 1,
-          error: coerceToError(e),
-        });
+        if (__DEV__) {
+          this._ctx.logger
+            ?.warnGroup(`Failed to fetch vimeo video info for id \`${videoId}\`.`)
+            .labelledLog('Error', e)
+            .dispatch();
+        }
       });
 
     return () => {
@@ -265,7 +272,7 @@ export class VimeoProvider
   protected override _buildParams(): VimeoParams {
     const { $iosControls } = this._ctx,
       { keyDisabled } = this._ctx.$props,
-      { controls, playsinline } = this._ctx.$state,
+      { controls, playsInline } = this._ctx.$state,
       showControls = controls() || $iosControls();
     return {
       title: this.title,
@@ -276,7 +283,7 @@ export class VimeoProvider
       h: this.hash,
       keyboard: showControls && !keyDisabled(),
       transparent: true,
-      playsinline: playsinline(),
+      playsinline: playsInline(),
       dnt: !this.cookies,
     };
   }
@@ -285,18 +292,20 @@ export class VimeoProvider
     this._remote('getCurrentTime');
   }
 
+  // Embed will sometimes dispatch 0 at end of playback.
+  private _skipTimeUpdates = false;
+
   protected _onTimeUpdate(time: number, trigger: Event) {
-    const { realCurrentTime, paused, bufferedEnd } = this._ctx.$state;
+    if (this._skipTimeUpdates && time === 0) return;
+
+    const { realCurrentTime, realDuration, paused, bufferedEnd } = this._ctx.$state;
 
     if (realCurrentTime() === time) return;
 
     const prevTime = realCurrentTime(),
       detail = {
         currentTime: time,
-        played:
-          this._played >= time
-            ? this._playedRange
-            : (this._playedRange = new TimeRange(0, (this._played = time))),
+        played: this._getPlayedRange(time),
       };
 
     this._notify('time-update', detail, trigger);
@@ -309,58 +318,74 @@ export class VimeoProvider
         this._notify('waiting', undefined, trigger);
       }
     }
+
+    if (realDuration() - time < 0.01) {
+      this._notify('end', undefined, trigger);
+      this._skipTimeUpdates = true;
+      setTimeout(() => {
+        this._skipTimeUpdates = false;
+      }, 500);
+    }
+  }
+
+  protected _getPlayedRange(time: number) {
+    return this._played >= time
+      ? this._playedRange
+      : (this._playedRange = new TimeRange(0, (this._played = time)));
   }
 
   protected _onSeeked(time: number, trigger: Event) {
     this._notify('seeked', time, trigger);
   }
 
-  protected _onReady(trigger: Event) {
+  protected _onLoaded(trigger: Event) {
     const videoId = this._videoId();
-
     this._videoInfoPromise?.promise
       .then((info) => {
         if (!info) return;
 
-        const { title, poster, duration, pro } = info,
-          { $iosControls } = this._ctx,
-          { controls } = this._ctx.$state,
-          showControls = controls() || $iosControls();
+        const { title, poster, duration, pro } = info;
 
         this._pro.set(pro);
-        this._seekableRange = new TimeRange(0, duration);
-        this._notify('poster-change', poster, trigger);
+
         this._notify('title-change', title, trigger);
+        this._notify('poster-change', poster, trigger);
         this._notify('duration-change', duration, trigger);
 
-        const detail = {
-          buffered: new TimeRange(0, 0),
-          seekable: this._seekableRange,
-          duration,
-        };
-
-        this._ctx.delegate._ready(detail, trigger);
-
-        if (!showControls) {
-          this._remote('_hideOverlay');
-        }
-
-        this._remote('getQualities');
-
-        // We can't control visibility of vimeo captions whilst getting complete info on cues.
-        // this._remote('getTextTracks');
-
-        // TODO: need a test video to implement.
-        // this._remote('getChapters');
+        this._onReady(duration, trigger);
       })
-      .catch((e) => {
+      .catch(() => {
         if (videoId !== this._videoId()) return;
-        this._notify('error', {
-          message: `Failed to fetch oembed data`,
-          code: 2,
-          error: coerceToError(e),
-        });
+        this._remote('getVideoTitle');
+        this._remote('getDuration');
       });
+  }
+
+  private _onReady(duration: number, trigger: Event) {
+    const { $iosControls } = this._ctx,
+      { controls } = this._ctx.$state,
+      showEmbedControls = controls() || $iosControls();
+
+    this._seekableRange = new TimeRange(0, duration);
+
+    const detail = {
+      buffered: new TimeRange(0, 0),
+      seekable: this._seekableRange,
+      duration,
+    };
+
+    this._ctx.delegate._ready(detail, trigger);
+
+    if (!showEmbedControls) {
+      this._remote('_hideOverlay');
+    }
+
+    this._remote('getQualities');
+
+    // We can't control visibility of vimeo captions whilst getting complete info on cues.
+    // this._remote('getTextTracks');
+
+    this._remote('getChapters');
   }
 
   protected _onMethod<T extends keyof VimeoCommandData>(
@@ -369,6 +394,18 @@ export class VimeoProvider
     trigger: Event,
   ) {
     switch (method) {
+      case 'getVideoTitle':
+        const videoTitle = data as string;
+        this._notify('title-change', videoTitle, trigger);
+        break;
+      case 'getDuration':
+        const duration = data as number;
+        if (!this._ctx.$state.canPlay()) {
+          this._onReady(duration, trigger);
+        } else {
+          this._notify('duration-change', duration, trigger);
+        }
+        break;
       case 'getCurrentTime':
         // Why isn't this narrowing type?
         this._onTimeUpdate(data as number, trigger);
@@ -385,6 +422,7 @@ export class VimeoProvider
       //   this._onTextTracksChange(data as VimeoTextTrack[], trigger);
       //   break;
       case 'getChapters':
+        this._onChaptersChange(data as VimeoChapter[]);
         break;
       case 'getQualities':
         this._onQualitiesChange(data as VimeoQuality[], trigger);
@@ -482,11 +520,43 @@ export class VimeoProvider
   //   track?.addCue(this._currentCue, trigger);
   // }
 
+  protected _onChaptersChange(chapters: VimeoChapter[]) {
+    this._removeChapters();
+
+    if (!chapters.length) return;
+
+    const track = new TextTrack({
+        kind: 'chapters',
+        default: true,
+      }),
+      { realDuration } = this._ctx.$state;
+
+    for (let i = 0; i < chapters.length; i++) {
+      const chapter = chapters[i],
+        nextChapter = chapters[i + 1];
+
+      track.addCue(
+        new window.VTTCue(
+          chapter.startTime,
+          nextChapter?.startTime ?? realDuration(),
+          chapter.title,
+        ),
+      );
+    }
+
+    this._chaptersTrack = track;
+    this._ctx.textTracks.add(track);
+  }
+
+  protected _removeChapters() {
+    if (!this._chaptersTrack) return;
+    this._ctx.textTracks.remove(this._chaptersTrack);
+    this._chaptersTrack = null;
+  }
+
   protected _onQualitiesChange(qualities: VimeoQuality[], trigger: Event) {
     this._ctx.qualities[QualitySymbol._enableAuto] = qualities.some((q) => q.id === 'auto')
-      ? () => {
-          this._remote('setQuality', 'auto');
-        }
+      ? () => this._remote('setQuality', 'auto')
       : undefined;
 
     for (const quality of qualities) {
@@ -517,7 +587,7 @@ export class VimeoProvider
     if (!id) return;
 
     const isAuto = id === 'auto',
-      newQuality = this._ctx.qualities.toArray().find((q) => q.id === id);
+      newQuality = this._ctx.qualities.getById(id);
 
     if (isAuto) {
       this._ctx.qualities[QualitySymbol._setAuto](isAuto, trigger);
@@ -537,7 +607,7 @@ export class VimeoProvider
         this._attachListeners();
         break;
       case 'loaded':
-        this._onReady(trigger);
+        this._onLoaded(trigger);
         break;
       case 'play':
         this._onPlay(trigger);
@@ -602,6 +672,10 @@ export class VimeoProvider
   }
 
   protected _onError(error: VimeoErrorPayload, trigger: Event) {
+    if (error.method === 'setPlaybackRate') {
+      this._pro.set(false);
+    }
+
     if (error.method === 'play') {
       this._playPromise?.reject(error.message);
       return;
@@ -646,5 +720,6 @@ export class VimeoProvider
     this._videoInfoPromise = null;
     this._currentCue = null;
     this._pro.set(false);
+    this._removeChapters();
   }
 }

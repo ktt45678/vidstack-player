@@ -17,6 +17,7 @@ export type DefaultLayoutSlotName =
   | 'bufferingIndicator'
   | 'captionButton'
   | 'captions'
+  | 'title'
   | 'chapterTitle'
   | 'currentTime'
   | 'endTime'
@@ -25,6 +26,9 @@ export type DefaultLayoutSlotName =
   | 'livePlayButton'
   | 'muteButton'
   | 'pipButton'
+  | 'airPlayButton'
+  | 'googleCastButton'
+  | 'downloadButton'
   | 'playButton'
   | 'loadButton'
   | 'seekBackwardButton'
@@ -32,6 +36,12 @@ export type DefaultLayoutSlotName =
   | 'startDuration'
   | 'timeSlider'
   | 'volumeSlider'
+  | 'topControlsGroupStart'
+  | 'topControlsGroupCenter'
+  | 'topControlsGroupEnd'
+  | 'centerControlsGroupStart'
+  | 'centerControlsGroupCenter'
+  | 'centerControlsGroupEnd'
   | DefaultLayoutMenuSlotName;
 
 export type DefaultLayoutMenuSlotName =
@@ -42,12 +52,9 @@ export type DefaultLayoutMenuSlotName =
 
 export interface DefaultLayoutSlots extends Slots<DefaultLayoutSlotName> {}
 
-export interface DefaultAudioLayoutSlots {
-  smallLayout?: DefaultLayoutSlots;
-  largeLayout?: DefaultLayoutSlots;
-}
+export interface DefaultAudioLayoutSlots extends DefaultLayoutSlots {}
 
-export interface DefaultVideoLayoutSlots {
+export interface DefaultVideoLayoutSlots extends DefaultLayoutSlots {
   smallLayout?: DefaultLayoutSlots;
   largeLayout?: DefaultLayoutSlots;
 }

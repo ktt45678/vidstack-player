@@ -1,9 +1,9 @@
 import type * as dashjs from 'dashjs';
 import { DOMEvent, isFunction, isString, isUndefined } from 'maverick.js/std';
 
+import type { MediaContext } from '../../core/api/media-context';
 import { coerceToError } from '../../utils/error';
 import { loadScript } from '../../utils/network';
-import type { MediaSetupContext } from '../types';
 import type { DASHConstructor, DASHConstructorLoader, DASHLibrary } from './types';
 
 interface LoadDASHConstructorCallbacks {
@@ -15,7 +15,7 @@ interface LoadDASHConstructorCallbacks {
 export class DASHLibLoader {
   constructor(
     private _lib: DASHLibrary,
-    private _ctx: MediaSetupContext,
+    private _ctx: MediaContext,
     private _callback: (ctor: DASHConstructor) => void,
   ) {
     this._startLoading();

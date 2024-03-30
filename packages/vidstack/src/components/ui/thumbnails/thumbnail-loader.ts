@@ -1,32 +1,30 @@
-import { effect, onDispose, peek, signal, type ReadSignal } from 'maverick.js';
-import { isString } from 'maverick.js/std';
-import type { VTTCue } from 'media-captions';
+import { effect, peek, signal, type ReadSignal } from 'maverick.js';
+import { isArray, isNumber, isObject, isString } from 'maverick.js/std';
 
 import { useMediaContext, type MediaContext } from '../../../core/api/media-context';
-import { parseJSONCaptionsFile } from '../../../core/tracks/text/text-track';
+import type { MediaCrossOrigin } from '../../../core/api/types';
+import { assert } from '../../../utils/error';
 import { getRequestCredentials } from '../../../utils/network';
-import type { ThumbnailSrc } from './thumbnail';
 
-const cache = new Map<string, VTTCue[]>(),
-  pending = new Set<string>(),
-  registry = new Set<ThumbnailsLoader>();
+const cache = new Map<string, ThumbnailImage[]>(),
+  pending = new Map<string, Promise<ThumbnailImage[] | void>>(),
+  warned = __DEV__ ? new Set<ThumbnailSrc>() : undefined;
 
 export class ThumbnailsLoader {
-  readonly $cues = signal<VTTCue[]>([]);
+  readonly $images = signal<ThumbnailImage[]>([]);
+  readonly $preloadedThumbs = signal<string[]>([]);
 
-  static create($src: ReadSignal<string | ThumbnailSrc>) {
+  static create($src: ReadSignal<ThumbnailSrc>, $crossOrigin: ReadSignal<MediaCrossOrigin | null>) {
     const media = useMediaContext();
-    return new ThumbnailsLoader($src, media);
+    return new ThumbnailsLoader($src, $crossOrigin, media);
   }
 
   constructor(
-    readonly $src: ReadSignal<string | ThumbnailSrc>,
+    readonly $src: ReadSignal<ThumbnailSrc>,
+    readonly $crossOrigin: ReadSignal<MediaCrossOrigin | null>,
     private _media: MediaContext,
   ) {
     effect(this._onLoadCues.bind(this));
-
-    registry.add(this);
-    onDispose(() => registry.delete(this));
   }
 
   protected _onLoadCues() {
@@ -34,87 +32,323 @@ export class ThumbnailsLoader {
 
     if (!canLoad()) return;
 
-    const controller = new AbortController(),
-      { crossorigin } = this._media.$state;
+    const src = this.$src(),
+      abort = new AbortController();
 
-    const srcProp = this.$src();
-    const src = isString(srcProp) ? srcProp : srcProp.src;
     if (!src) return;
 
-    if (isString(src)) {
-      if (cache.has(src)) {
-        // Really basic LRU cache implementation.
-        const cues = cache.get(src)!;
-        cache.delete(src);
-        cache.set(src, cues);
+    if (isString(src) && cache.has(src)) {
+      // Really basic LRU cache implementation.
+      const cues = cache.get(src)!;
+      cache.delete(src);
+      cache.set(src, cues);
 
-        if (cache.size > 30) {
-          const firstKey = cache.keys().next().value;
-          cache.delete(firstKey);
-        }
+      if (cache.size > 30) {
+        const firstKey = cache.keys().next().value;
+        cache.delete(firstKey);
+      }
 
-        this.$cues.set(cache.get(src)!);
-      } else if (!pending.has(src)) {
-        pending.add(src);
-        import('media-captions').then(async ({ parseResponse }) => {
+      this.$images.set(cache.get(src)!);
+    } else if (isString(src)) {
+      const crossOrigin = this.$crossOrigin(),
+        currentKey = src + '::' + crossOrigin;
+
+      if (!pending.has(currentKey)) {
+        const promise = new Promise<ThumbnailImage[]>(async (resolve, reject) => {
           try {
             const response = await fetch(src, {
-                signal: controller.signal,
-                credentials: getRequestCredentials(crossorigin()),
+                signal: abort.signal,
+                credentials: getRequestCredentials(crossOrigin),
               }),
               isJSON = response.headers.get('content-type') === 'application/json';
 
             if (isJSON) {
-              try {
-                const { cues } = parseJSONCaptionsFile(await response.text(), window.VTTCue);
-                this._updateCues(src, cues);
-              } catch (e) {
-                // no-op
+              const json = await response.json();
+
+              if (isArray(json)) {
+                if (json[0] && 'text' in (json[0] as Partial<VTTCue>)) {
+                  resolve(this._processVTTCues(json as any));
+                } else {
+                  for (let i = 0; i < json.length; i++) {
+                    const image = json[i];
+                    assert(isObject(image), __DEV__ && `Item not an object at index ${i}`);
+                    assert(
+                      'url' in image && isString(image.url),
+                      __DEV__ && `Invalid or missing \`url\` property at index ${i}`,
+                    );
+                    assert(
+                      'startTime' in image && isNumber(image.startTime),
+                      __DEV__ && `Invalid or missing \`startTime\` property at index ${i}`,
+                    );
+                  }
+
+                  resolve(json as ThumbnailImage[]);
+                }
+              } else {
+                resolve(this._processStoryboard(json));
               }
 
               return;
             }
 
-            const { cues } = await parseResponse(response);
-            this._updateCues(src, cues);
+            import('media-captions').then(async ({ parseResponse }) => {
+              try {
+                const { cues } = await parseResponse(response);
+                resolve(this._processVTTCues(cues));
+              } catch (e) {
+                reject(e);
+              }
+            });
           } catch (e) {
-            // no-op
+            reject(e);
           }
-        });
+        })
+          .then((images) => {
+            if (!abort.signal.aborted) cache.set(currentKey, images);
+            return images;
+          })
+          .catch((error) => {
+            if (abort.signal.aborted) return;
+            this._onError(src, error);
+          })
+          .finally(() => {
+            if (isString(currentKey)) pending.delete(currentKey);
+          });
+
+        pending.set(currentKey, promise);
       }
-    } else if (!isString(srcProp) && srcProp.type === 'cues') {
-      const baseURL = srcProp.baseURL;
-      if (cache.has(baseURL)) {
-        // Really basic LRU cache implementation.
-        const cues = cache.get(baseURL)!;
-        cache.delete(baseURL);
-        cache.set(baseURL, cues);
 
-        if (cache.size > 30) {
-          const firstKey = cache.keys().next().value;
-          cache.delete(firstKey);
-        }
-
-        this.$cues.set(cache.get(baseURL)!);
-      } else if (!pending.has(baseURL)) {
-        this._updateCues(baseURL, src);
+      pending.get(currentKey)?.then((images) => {
+        if (abort.signal.aborted) return;
+        this.$images.set(images || []);
+      });
+    } else if (isArray(src)) {
+      try {
+        this.$images.set(this._processImages(src));
+      } catch (error) {
+        this._onError(src, error);
+      }
+    } else if ('baseURL' in src) {
+      this.$images.set(this._processCDNSrc(src));
+    } else {
+      try {
+        this.$images.set(this._processStoryboard(src));
+      } catch (error) {
+        this._onError(src, error);
       }
     }
 
     return () => {
-      controller.abort();
-      this.$cues.set([]);
+      abort.abort();
+      this.$images.set([]);
     };
   }
 
-  private _updateCues(currentSrc: string, cues: VTTCue[]) {
-    this.$cues.set(cues);
+  private _processImages(images: ThumbnailImageInit[]): ThumbnailImage[] {
+    const baseURL = this._resolveBaseUrl();
+    return images.map((img, i) => {
+      assert(
+        img.url && isString(img.url),
+        __DEV__ && `Invalid or missing \`url\` property at index ${i}`,
+      );
+      assert(
+        'startTime' in img && isNumber(img.startTime),
+        __DEV__ && `Invalid or missing \`startTime\` property at index ${i}`,
+      );
+      return {
+        ...img,
+        url: isString(img.url) ? this._resolveURL(img.url, baseURL) : img.url,
+      };
+    });
+  }
 
-    for (const t of registry) {
-      if (peek(t.$src) === currentSrc) t.$cues.set(cues);
+  private _processStoryboard(
+    board: Partial<ThumbnailStoryboard> | Partial<MuxThumbnailStoryboard>,
+  ) {
+    assert(isString(board.url), __DEV__ && 'Missing `url` in storyboard object');
+    assert(isArray(board.tiles) && board.tiles?.length, __DEV__ && `Empty tiles in storyboard`);
+
+    const url = new URL(board.url),
+      images: ThumbnailImage[] = [];
+
+    const tileWidth =
+        'tile_width' in board
+          ? board.tile_width
+          : (board as Partial<ThumbnailStoryboard>).tileWidth,
+      tileHeight =
+        'tile_height' in board
+          ? board.tile_height
+          : (board as Partial<ThumbnailStoryboard>).tileHeight;
+
+    for (const tile of board.tiles) {
+      images.push({
+        url,
+        startTime: 'start' in tile ? tile.start : tile.startTime,
+        width: tileWidth,
+        height: tileHeight,
+        coords: { x: tile.x, y: tile.y },
+      });
     }
 
-    cache.set(currentSrc, cues);
-    pending.delete(currentSrc);
+    return images;
   }
+
+  private _processCDNSrc(src: ThumbnailImageCDN) {
+    const baseURL = src.baseURL;
+    this.$preloadedThumbs.set([]);
+    const images = src.thumbs.map((img) => {
+      return {
+        ...img,
+        url: isString(img.url) ? this._resolveURL(img.url, baseURL) : img.url,
+      };
+    });
+
+    return images;
+  }
+
+  private _processVTTCues(cues: { startTime?: number; endTime?: number; text?: string }[]) {
+    for (let i = 0; i < cues.length; i++) {
+      const cue = cues[i];
+      assert(
+        'startTime' in cue && isNumber(cue.startTime),
+        __DEV__ && `Invalid or missing \`startTime\` property at index ${i}`,
+      );
+      assert(
+        'text' in cue && isString(cue.text),
+        __DEV__ && `Invalid or missing \`text\` property at index ${i}`,
+      );
+    }
+
+    const images: ThumbnailImage[] = [],
+      baseURL = this._resolveBaseUrl();
+
+    for (const cue of cues) {
+      const [url, hash] = cue.text!.split('#'),
+        data = this._resolveData(hash);
+      images.push({
+        url: this._resolveURL(url, baseURL),
+        startTime: cue.startTime!,
+        endTime: cue.endTime,
+        width: data?.w,
+        height: data?.h,
+        coords: data && isNumber(data.x) && isNumber(data.y) ? { x: data.x, y: data.y } : undefined,
+      });
+    }
+
+    return images;
+  }
+
+  private _resolveBaseUrl() {
+    let baseURL = peek(this.$src);
+
+    if (!isString(baseURL) || !/^https?:/.test(baseURL)) {
+      return location.href;
+    }
+
+    return baseURL;
+  }
+
+  private _resolveURL(src: string, baseURL: string) {
+    let splitBaseURL = '';
+    if (!src.startsWith('/') && !src.startsWith('http://') && !src.startsWith('https://'))
+      splitBaseURL = baseURL.substring(0, baseURL.lastIndexOf('/') + 1);
+
+    const srcURL = splitBaseURL + src;
+
+    return new URL(srcURL);
+  }
+
+  private _resolveData(hash?: string) {
+    if (!hash) return {};
+
+    // hash = xywh=0,0,256,160
+    const [hashProps, values] = hash.split('='),
+      hashValues = values?.split(','),
+      data: {
+        x?: number;
+        y?: number;
+        w?: number;
+        h?: number;
+      } = {};
+
+    if (!hashProps || !hashValues) {
+      return null;
+    }
+
+    for (let i = 0; i < hashProps.length; i++) {
+      const value = +hashValues[i];
+      if (!isNaN(value)) data[hashProps[i]] = value;
+    }
+
+    return data;
+  }
+
+  private _onError(src: ThumbnailSrc, error: unknown) {
+    if (!__DEV__ || warned?.has(src)) return;
+
+    this._media.logger
+      ?.errorGroup('[vidstack] failed to load thumbnails')
+      .labelledLog('Src', src)
+      .labelledLog('Error', error)
+      .dispatch();
+
+    warned?.add(src);
+  }
+}
+
+export type ThumbnailSrc =
+  | string
+  | ThumbnailImageInit[]
+  | ThumbnailStoryboard
+  | MuxThumbnailStoryboard
+  | ThumbnailImageCDN
+  | null;
+
+export interface ThumbnailStoryboard {
+  url: string;
+  tileWidth: number;
+  tileHeight: number;
+  tiles: ThumbnailTile[];
+}
+
+export interface ThumbnailTile {
+  startTime: number;
+  x: number;
+  y: number;
+}
+
+export interface MuxThumbnailStoryboard {
+  url: string;
+  tile_width: number;
+  tile_height: number;
+  tiles: MuxThumbnailTile[];
+}
+
+export interface MuxThumbnailTile {
+  start: number;
+  x: number;
+  y: number;
+}
+
+export interface ThumbnailImageInit {
+  url: string | URL;
+  startTime: number;
+  endTime?: number;
+  width?: number;
+  height?: number;
+  coords?: ThumbnailCoords;
+}
+
+export interface ThumbnailImageCDN {
+  baseURL: string;
+  thumbs: ThumbnailImageInit[];
+}
+
+export interface ThumbnailImage extends Omit<ThumbnailImageInit, 'url'> {
+  url: URL;
+}
+
+export interface ThumbnailCoords {
+  x: number;
+  y: number;
 }

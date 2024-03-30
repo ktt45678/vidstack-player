@@ -1,12 +1,14 @@
 import { isString } from 'maverick.js/std';
 
-import type { MediaSrc, MediaType } from '../../core';
+import type { MediaType, Src } from '../../core';
 import type { MediaContext } from '../../core/api/media-context';
 import { preconnect } from '../../utils/network';
 import type { MediaProviderLoader } from '../types';
 import type { YouTubeProvider } from './provider';
 
 export class YouTubeProviderLoader implements MediaProviderLoader<YouTubeProvider> {
+  readonly name = 'youtube';
+
   target!: HTMLIFrameElement;
 
   preconnect() {
@@ -21,11 +23,11 @@ export class YouTubeProviderLoader implements MediaProviderLoader<YouTubeProvide
     ];
 
     for (const url of connections) {
-      preconnect(url, 'preconnect');
+      preconnect(url);
     }
   }
 
-  canPlay(src: MediaSrc): boolean {
+  canPlay(src: Src): boolean {
     return isString(src.src) && src.type === 'video/youtube';
   }
 
@@ -44,14 +46,10 @@ export class YouTubeProviderLoader implements MediaProviderLoader<YouTubeProvide
       );
     }
 
-    return new (await import('./provider')).YouTubeProvider(this.target);
+    return new (await import('./provider')).YouTubeProvider(this.target, ctx);
   }
 
-  async loadPoster(
-    src: MediaSrc,
-    ctx: MediaContext,
-    abort: AbortController,
-  ): Promise<string | null> {
+  async loadPoster(src: Src, ctx: MediaContext, abort: AbortController): Promise<string | null> {
     const { findYouTubePoster, resolveYouTubeVideoId } = await import('./utils');
 
     const videoId = isString(src.src) && resolveYouTubeVideoId(src.src);

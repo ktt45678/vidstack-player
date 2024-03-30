@@ -31,8 +31,8 @@ const EXTERNAL_PACKAGES = [
     'hls.js',
     /^remotion/,
   ],
-  NPM_BUNDLES = [define({ dev: true }), define({ dev: false })],
-  TYPES_BUNDLES = [defineTypes()];
+  NPM_BUNDLES = [defineNPMBundle({ dev: true }), defineNPMBundle({ dev: false })],
+  TYPES_BUNDLES = defineTypesBundle();
 
 // Styles
 if (!MODE_TYPES) {
@@ -53,38 +53,61 @@ export default defineConfig(
 );
 
 /**
- * @returns {import('rollup').RollupOptions}
+ * @returns {import('rollup').RollupOptions[]}
  * */
-function defineTypes() {
-  return {
-    input: {
-      index: 'types/react/src/index.d.ts',
-      icons: 'types/react/src/icons.d.ts',
-      'player/remotion': 'types/react/src/providers/remotion/index.d.ts',
-      'player/layouts/default': 'types/react/src/components/layouts/default/index.d.ts',
-    },
-    output: {
-      dir: '.',
-      chunkFileNames: 'dist/types/[name].d.ts',
-      manualChunks(id) {
-        if (id.includes('react/src')) return 'vidstack-react';
-        if (id.includes('maverick')) return 'vidstack-framework';
-        if (id.includes('vidstack')) return 'vidstack';
+function defineTypesBundle() {
+  return [
+    {
+      input: {
+        index: 'types/react/src/index.d.ts',
+        icons: 'types/react/src/icons.d.ts',
+        'player/remotion': 'types/react/src/providers/remotion/index.d.ts',
+        'player/layouts/default': 'types/react/src/components/layouts/default/index.d.ts',
+        'player/layouts/plyr': 'types/react/src/components/layouts/plyr/index.d.ts',
       },
-    },
-    external: EXTERNAL_PACKAGES,
-    plugins: [
-      {
-        name: 'resolve-vidstack-types',
-        resolveId(id) {
-          if (id === 'vidstack') {
-            return 'types/vidstack/src/index.d.ts';
-          }
+      output: {
+        dir: '.',
+        chunkFileNames: 'dist/types/[name].d.ts',
+        manualChunks(id) {
+          if (id.includes('react/src')) return 'vidstack-react';
+          if (id.includes('maverick')) return 'vidstack-framework';
+          if (id.includes('vidstack')) return 'vidstack';
         },
       },
-      dts({ respectExternal: true }),
-    ],
-  };
+      external: EXTERNAL_PACKAGES,
+      plugins: [
+        {
+          name: 'resolve-vidstack-types',
+          resolveId(id) {
+            if (id === 'vidstack') {
+              return 'types/vidstack/src/index.d.ts';
+            }
+          },
+        },
+        dts({
+          respectExternal: true,
+        }),
+        {
+          name: 'globals',
+          generateBundle(_, bundle) {
+            const indexFile = Object.values(bundle).find((file) => file.fileName === 'index.d.ts'),
+              globalFiles = ['dom.d.ts', 'google-cast.d.ts'],
+              references = globalFiles
+                .map((path) => `/// <reference path="./${path}" />`)
+                .join('\n');
+
+            for (const file of globalFiles) {
+              fs.copyFileSync(path.resolve(`../vidstack/${file}`), file);
+            }
+
+            if (indexFile?.type === 'chunk') {
+              indexFile.code = references + `\n\n${indexFile.code}`;
+            }
+          },
+        },
+      ],
+    },
+  ];
 }
 
 /**
@@ -97,13 +120,15 @@ function defineTypes() {
  * @param {BundleOptions}
  * @returns {import('rollup').RollupOptions}
  */
-function define({ dev }) {
+function defineNPMBundle({ dev }) {
   let alias = dev ? 'dev' : 'prod';
 
   let input = {
     vidstack: 'src/index.ts',
     'player/vidstack-remotion': 'src/providers/remotion/index.ts',
     'player/vidstack-default-layout': 'src/components/layouts/default/index.ts',
+    'player/vidstack-plyr-layout': 'src/components/layouts/plyr/index.ts',
+    'player/vidstack-plyr-icons': 'src/components/layouts/plyr/icons.tsx',
     'player/vidstack-default-components': 'src/components/layouts/default/ui.ts',
     'player/vidstack-default-icons': 'src/components/layouts/default/icons.tsx',
   };

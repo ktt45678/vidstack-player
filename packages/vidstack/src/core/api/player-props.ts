@@ -1,23 +1,26 @@
 import type { LogLevel } from '../../foundation/logger/log-level';
 import type { ScreenOrientationLockType } from '../../foundation/orientation/types';
+import type { GoogleCastOptions } from '../../providers/google-cast/types';
 import { MEDIA_KEY_SHORTCUTS } from '../keyboard/controller';
 import type { MediaKeyShortcuts, MediaKeyTarget } from '../keyboard/types';
+import type { MediaStorage } from '../state/media-storage';
 import type { MediaState } from './player-state';
-import type {
-  MediaLoadingStrategy,
-  MediaPosterLoadingStrategy,
-  MediaResource,
-  MediaSourceProvider,
-} from './types';
+import type { MediaSrc } from './src-types';
+import type { MediaLoadingStrategy, MediaPosterLoadingStrategy } from './types';
 
 export const mediaPlayerProps: MediaPlayerProps = {
+  artist: '',
   autoplay: false,
+  autoPlay: false,
   clipStartTime: 0,
   clipEndTime: 0,
   controls: false,
   currentTime: 0,
   crossorigin: null,
+  crossOrigin: null,
+  duration: -1,
   fullscreenOrientation: 'landscape',
+  googleCast: {},
   load: 'visible',
   posterLoad: 'visible',
   logLevel: __DEV__ ? 'warn' : 'silent',
@@ -25,6 +28,7 @@ export const mediaPlayerProps: MediaPlayerProps = {
   muted: false,
   paused: true,
   playsinline: false,
+  playsInline: false,
   playbackRate: 1,
   poster: '',
   preload: 'metadata',
@@ -41,22 +45,20 @@ export const mediaPlayerProps: MediaPlayerProps = {
   keyDisabled: false,
   keyTarget: 'player',
   keyShortcuts: MEDIA_KEY_SHORTCUTS,
-  storageKey: null,
+  storage: null,
 };
 
 export interface MediaStateAccessors
   extends Pick<MediaState, 'paused' | 'muted' | 'volume' | 'currentTime' | 'playbackRate'> {}
 
-export type PlayerSrc =
-  | MediaResource
-  | { src: MediaResource; type?: string; provider?: MediaSourceProvider }
-  | { src: MediaResource; type?: string; provider?: MediaSourceProvider }[];
+export type PlayerSrc = MediaSrc | MediaSrc[];
 
 export interface MediaPlayerProps
   // Prefer picking off the `MediaStore` type to ensure docs are kept in-sync.
   extends Pick<
     MediaState,
-    | 'autoplay'
+    | 'artist'
+    | 'autoPlay'
     | 'clipStartTime'
     | 'clipEndTime'
     | 'controls'
@@ -64,7 +66,7 @@ export interface MediaPlayerProps
     | 'loop'
     | 'muted'
     | 'paused'
-    | 'playsinline'
+    | 'playsInline'
     | 'poster'
     | 'preload'
     | 'playbackRate'
@@ -76,13 +78,22 @@ export interface MediaPlayerProps
     | 'liveEdgeTolerance'
     | 'minLiveDVRWindow'
   > {
+  /** @deprecated - Use `autoPlay` */
+  autoplay: boolean;
+  /** @deprecated - Use `crossOrigin` */
+  crossorigin: string | true | null;
   /**
    * Defines how the media element handles cross-origin requests, thereby enabling the
    * configuration of the CORS requests for the element's fetched data.
    *
    * @see {@link https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/crossorigin}
    */
-  crossorigin: string | true | null;
+  crossOrigin: true | MediaState['crossOrigin'];
+  /**
+   * A `double` indicating the total playback length of the media in seconds. If this is not
+   * provided it will be determined when the media loaded.
+   */
+  duration: number;
   /**
    * The URL and optionally type of the current media resource/s to be considered for playback.
    *
@@ -134,6 +145,14 @@ export interface MediaPlayerProps
    * the Screen Orientation API is available.
    */
   fullscreenOrientation: ScreenOrientationLockType | undefined;
+  /**
+   * Google Cast options.
+   *
+   * @see {@link https://developers.google.com/cast/docs/reference/web_sender/cast.framework.CastOptions}
+   */
+  googleCast: GoogleCastOptions;
+  /** @deprecated - Use `playsInline`. */
+  playsinline: boolean;
   /**
    * Whether native HLS support is preferred over using `hls.js`. We recommend setting this to
    * `false` to ensure a consistent and configurable experience across browsers. In addition, our
@@ -197,8 +216,14 @@ export interface MediaPlayerProps
    */
   keyShortcuts: MediaKeyShortcuts;
   /**
-   * Determines whether volume, time, and captions settings should be saved to local storage
-   * and used when initializing media.
+   * Determines whether volume, time, and other player settings should be saved to storage
+   * and used when initializing media. The two options for enabling storage are:
+   *
+   * 1. You can provide a string which will use our local storage solution and the given string as
+   * a key prefix.
+   *
+   * 2. Or, you can provide your own storage solution (e.g., database) by implementing
+   * the `MediaStorage` interface and providing the object/class.
    */
-  storageKey: string | null;
+  storage: string | MediaStorage | null;
 }

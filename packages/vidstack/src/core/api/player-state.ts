@@ -1,26 +1,32 @@
 import { State, tick, type Store } from 'maverick.js';
 
 import type { LogLevel } from '../../foundation/logger/log-level';
+import type { MediaProviderLoader } from '../../providers/types';
 import { canOrientScreen } from '../../utils/support';
 import type { VideoQuality } from '../quality/video-quality';
 import { getTimeRangesEnd, getTimeRangesStart, TimeRange } from '../time-ranges';
 import type { AudioTrack } from '../tracks/audio-tracks';
-import type { TextTrack } from '../tracks/text/text-track';
+import { isTrackCaptionKind, type TextTrack } from '../tracks/text/text-track';
+import type { Src } from './src-types';
 import type {
+  MediaCrossOrigin,
   MediaErrorDetail,
-  MediaSrc,
   MediaStreamType,
   MediaType,
   MediaViewType,
+  RemotePlaybackInfo,
+  RemotePlaybackType,
 } from './types';
 
 export interface MediaPlayerState extends MediaState {}
 
 export const mediaState = new State<MediaState>({
-  audioTracks: [],
+  artist: '',
   audioTrack: null,
-  autoplay: false,
-  autoplayError: null,
+  audioTracks: [],
+  autoPlay: false,
+  autoPlayError: null,
+  audioGain: null,
   buffered: new TimeRange(),
   canLoad: false,
   canLoadPoster: false,
@@ -32,18 +38,23 @@ export const mediaState = new State<MediaState>({
   clipEndTime: 0,
   controls: false,
   controlsVisible: false,
-  crossorigin: null,
+  get controlsHidden() {
+    return !this.controlsVisible;
+  },
+  crossOrigin: null,
   ended: false,
   error: null,
   fullscreen: false,
-  loop: false,
+  get loop() {
+    return this.providedLoop || this.userPrefersLoop;
+  },
   logLevel: __DEV__ ? 'warn' : 'silent',
   mediaType: 'unknown',
   muted: false,
   paused: true,
   played: new TimeRange(),
   playing: false,
-  playsinline: false,
+  playsInline: false,
   pictureInPicture: false,
   preload: 'metadata',
   playbackRate: 1,
@@ -53,6 +64,7 @@ export const mediaState = new State<MediaState>({
   canSetQuality: true,
   canSetPlaybackRate: true,
   canSetVolume: false,
+  canSetAudioGain: false,
   seekable: new TimeRange(),
   seeking: false,
   source: { src: '', type: '' },
@@ -60,6 +72,9 @@ export const mediaState = new State<MediaState>({
   started: false,
   textTracks: [],
   textTrack: null,
+  get hasCaptions() {
+    return this.textTracks.filter(isTrackCaptionKind).length > 0;
+  },
   volume: 1,
   waiting: false,
   realCurrentTime: 0,
@@ -68,11 +83,15 @@ export const mediaState = new State<MediaState>({
       ? Math.max(0, Math.min(this.realCurrentTime - this.clipStartTime, this.duration))
       : this.realCurrentTime;
   },
+  providedDuration: -1,
   intrinsicDuration: 0,
+  get realDuration() {
+    return this.providedDuration > 0 ? this.providedDuration : this.intrinsicDuration;
+  },
   get duration() {
     return this.clipEndTime > 0
       ? this.clipEndTime - this.clipStartTime
-      : Math.max(0, this.intrinsicDuration - this.clipStartTime);
+      : Math.max(0, this.realDuration - this.clipStartTime);
   },
   get title() {
     return this.providedTitle || this.inferredTitle;
@@ -106,11 +125,25 @@ export const mediaState = new State<MediaState>({
   get seekableEnd() {
     const end = this.canPlay ? getTimeRangesEnd(this.seekable) ?? Infinity : 0;
     return this.clipEndTime > 0
-      ? Math.min(this.clipEndTime, Math.max(0, end - this.clipStartTime))
+      ? Math.max(this.clipEndTime, Math.max(0, end - this.clipStartTime))
       : end;
   },
   get seekableWindow() {
     return Math.max(0, this.seekableEnd - this.seekableStart);
+  },
+
+  // ~~ remote playback ~~
+  canAirPlay: false,
+  canGoogleCast: false,
+  remotePlaybackState: 'disconnected',
+  remotePlaybackType: 'none',
+  remotePlaybackLoader: null,
+  remotePlaybackInfo: null,
+  get isAirPlayConnected() {
+    return this.remotePlaybackType === 'airplay' && this.remotePlaybackState === 'connected';
+  },
+  get isGoogleCastConnected() {
+    return this.remotePlaybackType === 'google-cast' && this.remotePlaybackState === 'connected';
   },
 
   // ~~ responsive design ~~
@@ -120,6 +153,7 @@ export const mediaState = new State<MediaState>({
   height: 0,
   mediaWidth: 0,
   mediaHeight: 0,
+  lastKeyboardAction: null,
 
   // ~~ user props ~~
   userBehindLiveEdge: false,
@@ -135,7 +169,7 @@ export const mediaState = new State<MediaState>({
     );
   },
   get live() {
-    return this.streamType.includes('live') || !Number.isFinite(this.intrinsicDuration);
+    return this.streamType.includes('live') || !Number.isFinite(this.realDuration);
   },
   get liveEdgeStart() {
     return this.live && Number.isFinite(this.seekableEnd)
@@ -155,9 +189,11 @@ export const mediaState = new State<MediaState>({
   },
 
   // ~~ internal props ~~
-  autoplaying: false,
+  autoPlaying: false,
   providedTitle: '',
   inferredTitle: '',
+  providedLoop: false,
+  userPrefersLoop: false,
   providedPoster: '',
   inferredPoster: '',
   inferredViewType: 'unknown',
@@ -165,50 +201,43 @@ export const mediaState = new State<MediaState>({
   providedStreamType: 'unknown',
   inferredStreamType: 'unknown',
   liveSyncPosition: null,
+  savedState: null,
 });
 
-const DO_NOT_RESET_ON_SRC_CHANGE = new Set<keyof MediaState>([
-  'autoplay',
-  'canFullscreen',
-  'canLoad',
-  'canLoadPoster',
-  'canPictureInPicture',
-  'canSetVolume',
-  'controls',
-  'crossorigin',
-  'fullscreen',
-  'height',
-  'inferredViewType',
-  'logLevel',
-  'loop',
-  'mediaHeight',
-  'mediaType',
-  'mediaWidth',
-  'muted',
-  'orientation',
-  'pictureInPicture',
-  'playsinline',
-  'pointer',
-  'preload',
-  'providedPoster',
-  'providedStreamType',
-  'providedTitle',
-  'providedViewType',
-  'source',
-  'sources',
-  'textTrack',
-  'textTracks',
-  'volume',
-  'width',
-  'clipStartTime',
-  'clipEndTime',
+const RESET_ON_SRC_QUALITY_CHANGE = new Set<keyof MediaState>([
+  'autoPlayError',
+  'autoPlaying',
+  'buffered',
+  'canPlay',
+  'error',
+  'paused',
+  'played',
+  'playing',
+  'seekable',
+  'seeking',
+  'waiting',
+]);
+
+const RESET_ON_SRC_CHANGE = new Set<keyof MediaState>([
+  ...RESET_ON_SRC_QUALITY_CHANGE,
+  'ended',
+  'inferredPoster',
+  'inferredStreamType',
+  'inferredTitle',
+  'intrinsicDuration',
+  'liveSyncPosition',
+  'realCurrentTime',
+  'savedState',
+  'started',
+  'userBehindLiveEdge',
 ]);
 
 /**
- * Resets all media state and leaves general player state intact (i.e., `autoplay`, `volume`, etc.).
+ * Resets all media state and leaves general player state intact.
  */
-export function softResetMediaState($media: MediaStore) {
-  mediaState.reset($media, (prop) => !DO_NOT_RESET_ON_SRC_CHANGE.has(prop));
+export function softResetMediaState($media: MediaStore, isSourceQualityChange = false) {
+  const filter = isSourceQualityChange ? RESET_ON_SRC_QUALITY_CHANGE : RESET_ON_SRC_CHANGE;
+  mediaState.reset($media, (prop) => filter.has(prop));
   tick();
 }
 
@@ -222,23 +251,23 @@ export interface MediaState {
    * without interruption.
    *
    * Sites which automatically play audio (or videos with an audio track) can be an unpleasant
-   * experience for users, so it should be avoided when possible. If you must offer autoplay
+   * experience for users, so it should be avoided when possible. If you must offer auto-play
    * functionality, you should make it opt-in (requiring a user to specifically enable it).
    *
-   * However, autoplay can be useful when creating media elements whose source will be set at a
+   * However, auto-play can be useful when creating media elements whose source will be set at a
    * later time, under user control.
    *
    * @defaultValue false
    * @see {@link https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/autoplay}
    */
-  autoplay: boolean;
+  autoPlay: boolean;
   /**
-   * Set to an error when autoplay has failed to begin playback. This can be used to determine
-   * when to show a recovery UI in the event autoplay fails.
+   * Set to an error when auto-play has failed to begin playback. This can be used to determine
+   * when to show a recovery UI in the event auto-play fails.
    *
    * @defaultValue null
    */
-  autoplayError: { muted: boolean; error: Error } | null;
+  autoPlayError: { muted: boolean; error: Error } | null;
   /**
    * Returns a `TimeRanges` object that indicates the ranges of the media source that the
    * browser has buffered (if any) at the moment the buffered property is accessed. This is usually
@@ -273,7 +302,40 @@ export interface MediaState {
    * @defaultValue 0
    * @see {@link https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/duration}
    */
-  duration: number;
+  readonly duration: number;
+  /**
+   * Whether Apple AirPlay is available for casting and playing media on another device such as a
+   * TV.
+   */
+  canAirPlay: boolean;
+  /**
+   * Whether Google Cast is available for casting and playing media on another device such as a TV.
+   */
+  canGoogleCast: boolean;
+  /**
+   * The current remote playback state when using AirPlay or Google Cast.
+   */
+  remotePlaybackState: RemotePlaybackState;
+  /**
+   * The type of remote playback that is currently connecting or connected.
+   */
+  remotePlaybackType: RemotePlaybackType;
+  /**
+   * An active remote playback loader such as the `GoogleCastLoader`.
+   */
+  remotePlaybackLoader: MediaProviderLoader | null;
+  /**
+   * Information about the current remote playback.
+   */
+  remotePlaybackInfo: RemotePlaybackInfo | null;
+  /**
+   * Whether AirPlay is connected.
+   */
+  readonly isAirPlayConnected: boolean;
+  /**
+   * Whether Google Cast is connected.
+   */
+  readonly isGoogleCastConnected: boolean;
   /**
    * Whether the native browser Fullscreen API is available, or the current provider can
    * toggle fullscreen mode. This does not mean that the operation is guaranteed to be successful,
@@ -353,14 +415,14 @@ export interface MediaState {
    *
    * @see {@link https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/crossorigin}
    */
-  crossorigin: string | null;
+  crossOrigin: MediaCrossOrigin | null;
   /**
    * The URL of the current poster. Defaults to `''` if no media/poster has been given or
    * loaded.
    *
    * @defaultValue ''
    */
-  poster: string;
+  readonly poster: string;
   /**
    * A `double` indicating the current playback time in seconds. Defaults to `0` if the media has
    * not started to play and has not seeked. Setting this value seeks the media to the new
@@ -370,7 +432,7 @@ export interface MediaState {
    * @defaultValue 0
    * @see {@link https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/currentTime}
    */
-  currentTime: number;
+  readonly currentTime: number;
   /**
    * Whether media playback has reached the end. In other words it'll be true
    * if `currentTime === duration`.
@@ -403,6 +465,10 @@ export interface MediaState {
    */
   controlsVisible: boolean;
   /**
+   * Whether controls are hidden.
+   */
+  readonly controlsHidden: boolean;
+  /**
    * Whether the user has intentionally seeked behind the live edge. The user must've seeked
    * roughly 2 or more seconds behind during a live stream for this to be considered true.
    *
@@ -416,7 +482,7 @@ export interface MediaState {
    * @defaultValue false
    * @see {@link https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/loop}
    */
-  loop: boolean;
+  readonly loop: boolean;
   /**
    * The current log level. Values in order of priority are: `silent`, `error`, `warn`, `info`,
    * and `debug`.
@@ -516,7 +582,7 @@ export interface MediaState {
    * @defaultValue false
    * @see {@link https://developer.mozilla.org/en-US/docs/Web/HTML/Element/video#attr-playsinline}
    */
-  playsinline: boolean;
+  playsInline: boolean;
   /**
    * Sets the rate at which the media is being played back. This is used to implement user
    * controls for fast forward, slow motion, and so forth. The normal playback rate is multiplied
@@ -574,6 +640,10 @@ export interface MediaState {
    */
   audioTrack: AudioTrack | null;
   /**
+   * The current audio gain. This will be `null` if audio gain is not supported or is not set.
+   */
+  audioGain: number | null;
+  /**
    * Whether the current video quality list is read-only, meaning quality selections can only
    * be set internally by the media provider. This will only be `false` when working with particular
    * third-party embeds such as YouTube.
@@ -589,6 +659,13 @@ export interface MediaState {
    * environment. It will generally be `false` on mobile devices as it's set by system controls.
    */
   canSetVolume: boolean;
+  /**
+   * Whether the current audio gain can be changed. This depends on the current provider and browser
+   * environment. It generally depends on browser's Web Audio API support.
+   *
+   * @see {@link https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API}
+   */
+  canSetAudioGain: boolean;
   /**
    * Contains the time ranges that the user is able to seek to, if any. This tells us which parts
    * of the media can be played without delay; this is irrespective of whether that part has
@@ -640,16 +717,16 @@ export interface MediaState {
    *
    * @defaultValue []
    */
-  sources: MediaSrc[];
+  sources: Src[];
   /**
    * The chosen media resource. Defaults to `{ src: '', type: '' }` if no media has been loaded.
    *
    * @defaultValue { src: '', type: '' }
    * @see {@link https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/currentSrc}
    */
-  source: MediaSrc;
+  source: Src;
   /** Alias for `source`. */
-  currentSrc: MediaSrc;
+  currentSrc: Src;
   /**
    * Whether media playback has started. In other words it will be true if `currentTime > 0`.
    *
@@ -665,7 +742,12 @@ export interface MediaState {
   /**
    * The title of the current media.
    */
-  title: string;
+  readonly title: string;
+  /**
+   * The artist or channel name for which this content belongs to. This can be used in your
+   * layout and it will be included in the Media Session API.
+   */
+  artist: string;
   /**
    * The list of all available text tracks.
    */
@@ -674,6 +756,10 @@ export interface MediaState {
    * The current captions/subtitles text track that is showing.
    */
   textTrack: TextTrack | null;
+  /**
+   * Whether there are any captions or subtitles available.
+   */
+  readonly hasCaptions: boolean;
   /**
    * The type of player view that should be used (i.e., audio or video). By default this is set
    * to `video`.
@@ -723,21 +809,36 @@ export interface MediaState {
    * The height of the media in provider pixels.
    */
   mediaHeight: number;
+  /**
+   *  The last keyboard shortcut that was triggered.
+   */
+  lastKeyboardAction: {
+    action: string;
+    event: KeyboardEvent;
+  } | null;
 
   // !!! INTERNALS !!!
 
   /* @internal */
-  autoplaying: boolean;
+  autoPlaying: boolean;
   /* @internal */
   providedTitle: string;
   /* @internal */
   inferredTitle: string;
+  /* @internal */
+  providedLoop: boolean;
+  /* @internal */
+  userPrefersLoop: boolean;
   /* @internal - Unclipped current time. */
   realCurrentTime: number;
   /* @internal */
   providedPoster: string;
   /* @internal */
   intrinsicDuration: number;
+  /* @internal */
+  realDuration: number;
+  /* @internal */
+  providedDuration: number;
   /* @internal */
   inferredPoster: string;
   /* @internal */
@@ -750,4 +851,10 @@ export interface MediaState {
   inferredStreamType: MediaStreamType;
   /* @internal */
   liveSyncPosition: number | null;
+  /** @internal */
+  savedState: { paused?: boolean; currentTime?: number } | null;
+}
+
+export interface MediaPlayerQuery {
+  (state: MediaPlayerState): boolean;
 }

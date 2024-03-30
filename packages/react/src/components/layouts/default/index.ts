@@ -1,4 +1,3 @@
-export * from './ui';
 export type {
   DefaultLayoutSlots,
   DefaultAudioLayoutSlots,
@@ -6,5 +5,7 @@ export type {
   DefaultLayoutSlotName,
   DefaultLayoutMenuSlotName,
 } from './slots';
-export * from './icons';
+export type { DefaultLayoutTranslations, DefaultLayoutWord } from 'vidstack';
+export type { DefaultLayoutProps } from './media-layout';
 export * from './context';
+export * from './ui';

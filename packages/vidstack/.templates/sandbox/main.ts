@@ -1,12 +1,18 @@
 // Register elements.
-import '../src/elements/bundles/player.ts';
-import '../src/elements/bundles/player-layouts.ts';
-import '../src/elements/bundles/player-ui.ts';
-import '../src/elements/bundles/icons.ts';
+import '../src/elements/bundles/player';
+import '../src/elements/bundles/player-layouts';
+import '../src/elements/bundles/player-ui';
+import '../src/elements/bundles/icons';
 
 import { isHLSProvider, type TextTrackInit } from '../src';
 
 const player = document.querySelector('media-player')!;
+
+Object.defineProperty(window, 'player', {
+  get() {
+    return player;
+  },
+});
 
 player.addEventListener('provider-change', (event) => {
   const provider = event.detail;

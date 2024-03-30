@@ -88,6 +88,24 @@ export class MediaRemoteControl {
   }
 
   /**
+   * Dispatch a request to connect to AirPlay.
+   *
+   * @see {@link https://www.apple.com/au/airplay}
+   */
+  requestAirPlay(trigger?: Event) {
+    this._dispatchRequest('media-airplay-request', trigger);
+  }
+
+  /**
+   * Dispatch a request to connect to Google Cast.
+   *
+   * @see {@link https://developers.google.com/cast/docs/overview}
+   */
+  requestGoogleCast(trigger?: Event) {
+    this._dispatchRequest('media-google-cast-request', trigger);
+  }
+
+  /**
    * Dispatch a request to begin/resume media playback.
    */
   play(trigger?: Event) {
@@ -269,6 +287,20 @@ export class MediaRemoteControl {
   }
 
   /**
+   * Dispatch a request to change the media audio gain.
+   *
+   * @example
+   * ```ts
+   * remote.changeAudioGain(1); // Disable audio gain (100% of current volume)
+   * remote.changeAudioGain(1.5); // 150% louder than current volume
+   * remote.changeAudioGain(2); // 200% louder than current volume
+   * ```
+   */
+  changeAudioGain(gain: number, trigger?: Event) {
+    this._dispatchRequest('media-audio-gain-change-request', trigger, gain);
+  }
+
+  /**
    * Dispatch a request to resume idle tracking on controls.
    */
   resumeControls(trigger?: Event) {
@@ -438,6 +470,10 @@ export class MediaRemoteControl {
     }
   }
 
+  userPrefersLoopChange(prefersLoop: boolean, trigger?: Event) {
+    this._dispatchRequest('media-user-loop-change-request', trigger, prefersLoop);
+  }
+
   private _dispatchRequest<EventType extends keyof MediaRequestEvents>(
     type: EventType,
     trigger?: Event,
@@ -446,6 +482,7 @@ export class MediaRemoteControl {
     const request = new DOMEvent<any>(type, {
       bubbles: true,
       composed: true,
+      cancelable: true,
       detail,
       trigger,
     });
@@ -473,7 +510,8 @@ export class MediaRemoteControl {
     }
 
     if (this._player) {
-      if (type === 'media-play-request' && !this._player.$state.canLoad()) {
+      // Special case if the player load strategy is set to `play`.
+      if (type === 'media-play-request' && !this._player.state.canLoad) {
         target?.dispatchEvent(request);
       } else {
         this._player.canPlayQueue._enqueue(type, () => target?.dispatchEvent(request));

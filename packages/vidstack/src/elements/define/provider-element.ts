@@ -37,16 +37,19 @@ export class MediaProviderElement extends Host(HTMLElement, MediaProvider) {
   protected onConnect(): void {
     effect(() => {
       const loader = this.$state.loader(),
-        isYouTubeEmbed = loader?.canPlay({ src: '', type: 'video/youtube' }),
-        isVimeoEmbed = loader?.canPlay({ src: '', type: 'video/vimeo' }),
-        isEmbed = isYouTubeEmbed || isVimeoEmbed;
+        isYouTubeEmbed = loader?.name === 'youtube',
+        isVimeoEmbed = loader?.name === 'vimeo',
+        isEmbed = isYouTubeEmbed || isVimeoEmbed,
+        isGoogleCast = loader?.name === 'google-cast';
 
       const target = loader
-        ? isEmbed
-          ? this._createIFrame()
-          : loader.mediaType() === 'audio'
-            ? this._createAudio()
-            : this._createVideo()
+        ? isGoogleCast
+          ? this._createGoogleCastContainer()
+          : isEmbed
+            ? this._createIFrame()
+            : loader.mediaType() === 'audio'
+              ? this._createAudio()
+              : this._createVideo()
         : null;
 
       if (this._target !== target) {
@@ -95,10 +98,10 @@ export class MediaProviderElement extends Host(HTMLElement, MediaProvider) {
     setAttribute(audio, 'preload', 'none');
     setAttribute(audio, 'aria-hidden', 'true');
 
-    const { controls, crossorigin } = this._media.$state;
+    const { controls, crossOrigin } = this._media.$state;
     effect(() => {
       setAttribute(audio, 'controls', controls());
-      setAttribute(audio, 'crossorigin', crossorigin());
+      setAttribute(audio, 'crossorigin', crossOrigin());
     });
 
     return audio;
@@ -108,14 +111,14 @@ export class MediaProviderElement extends Host(HTMLElement, MediaProvider) {
     const video =
       this._target instanceof HTMLVideoElement ? this._target : document.createElement('video');
 
-    const { controls, crossorigin, poster } = this._media.$state,
+    const { controls, crossOrigin, poster } = this._media.$state,
       { $iosControls } = this._media,
-      $nativeControls = computed(() => (controls() || $iosControls() ? '' : null)),
+      $nativeControls = computed(() => (controls() || $iosControls() ? 'true' : null)),
       $poster = computed(() => (poster() && (controls() || $iosControls()) ? poster() : null));
 
     effect(() => {
       setAttribute(video, 'controls', $nativeControls());
-      setAttribute(video, 'crossorigin', crossorigin());
+      setAttribute(video, 'crossorigin', crossOrigin());
       setAttribute(video, 'poster', $poster());
     });
 
@@ -123,9 +126,31 @@ export class MediaProviderElement extends Host(HTMLElement, MediaProvider) {
   }
 
   private _createIFrame() {
-    return this._target instanceof HTMLIFrameElement
-      ? this._target
-      : document.createElement('iframe');
+    const iframe =
+      this._target instanceof HTMLIFrameElement ? this._target : document.createElement('iframe');
+
+    const { controls } = this._media.$state,
+      { $iosControls } = this._media,
+      $nativeControls = computed(() => controls() || $iosControls());
+
+    effect(() => setAttribute(iframe, 'tabindex', !$nativeControls() ? -1 : null));
+
+    return iframe;
+  }
+
+  private _createGoogleCastContainer() {
+    if (this._target?.classList.contains('vds-google-cast')) {
+      return this._target;
+    }
+
+    const container = document.createElement('div');
+    container.classList.add('vds-google-cast');
+
+    import('./provider-cast-display').then(({ insertContent }) => {
+      insertContent(container, this._media.$state);
+    });
+
+    return container;
   }
 }
 

@@ -2,13 +2,14 @@ import * as React from 'react';
 
 import {
   createReactComponent,
-  useReactContext,
   useSignal,
   useStateContext,
   type ReactElementProps,
 } from 'maverick.js/react';
-import { mediaContext, mediaState, type MediaProviderLoader } from 'vidstack';
+import { mediaState, type MediaProviderLoader } from 'vidstack';
 
+import { useMediaContext } from '../hooks/use-media-context';
+import { Icon } from '../icon';
 import { isRemotionProvider } from '../providers/remotion/type-check';
 import { MediaProviderInstance } from './primitives/instances';
 
@@ -65,32 +66,58 @@ interface MediaOutletProps extends React.HTMLAttributes<HTMLMediaElement> {
   provider: MediaProviderInstance;
 }
 
-const YOUTUBE_TYPE = { src: '', type: 'video/youtube' },
-  VIMEO_TYPE = { src: '', type: 'video/vimeo' },
-  REMOTION_TYPE = { src: '', type: 'video/remotion' };
-
 function MediaOutlet({ provider, ...props }: MediaOutletProps) {
-  const { controls, crossorigin, poster } = useStateContext(mediaState),
+  const { controls, crossOrigin, poster, remotePlaybackInfo } = useStateContext(mediaState),
     { loader } = provider.$state,
     {
       $iosControls: $$iosControls,
       $provider: $$provider,
       $providerSetup: $$providerSetup,
-    } = useReactContext(mediaContext)!,
+    } = useMediaContext(),
     $controls = useSignal(controls),
     $iosControls = useSignal($$iosControls),
     $nativeControls = $controls || $iosControls,
-    $crossorigin = useSignal(crossorigin),
+    $crossOrigin = useSignal(crossOrigin),
     $poster = useSignal(poster),
     $loader = useSignal(loader),
     $provider = useSignal($$provider),
     $providerSetup = useSignal($$providerSetup),
+    $remoteInfo = useSignal(remotePlaybackInfo),
     $mediaType = $loader?.mediaType(),
-    isYouTubeEmbed = $loader?.canPlay(YOUTUBE_TYPE),
-    isVimeoEmbed = $loader?.canPlay(VIMEO_TYPE),
-    isEmbed = isYouTubeEmbed || isVimeoEmbed;
+    isYouTubeEmbed = $loader?.name === 'youtube',
+    isVimeoEmbed = $loader?.name === 'vimeo',
+    isEmbed = isYouTubeEmbed || isVimeoEmbed,
+    isRemotion = $loader?.name === 'remotion',
+    isGoogleCast = $loader?.name === 'google-cast',
+    [googleCastIconPaths, setGoogleCastIconPaths] = React.useState('');
 
-  if ($loader?.canPlay(REMOTION_TYPE)) {
+  React.useEffect(() => {
+    if (!isGoogleCast || googleCastIconPaths) return;
+    import('media-icons/dist/icons/chromecast.js').then((mod) => {
+      setGoogleCastIconPaths(mod.default);
+    });
+  }, [isGoogleCast]);
+
+  if (isGoogleCast) {
+    return (
+      <div
+        className="vds-google-cast"
+        ref={(el) => {
+          provider.load(el);
+        }}
+      >
+        <Icon paths={googleCastIconPaths} />
+        {$remoteInfo?.deviceName ? (
+          <span className="vds-google-cast-info">
+            Google Cast on{' '}
+            <span className="vds-google-cast-device-name">{$remoteInfo.deviceName}</span>
+          </span>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (isRemotion) {
     return (
       <div data-remotion-canvas>
         <div
@@ -114,6 +141,7 @@ function MediaOutlet({ provider, ...props }: MediaOutletProps) {
         React.createElement('iframe', {
           className: isYouTubeEmbed ? 'vds-youtube' : 'vds-vimeo',
           suppressHydrationWarning: true,
+          tabIndex: !$nativeControls ? -1 : undefined,
           'aria-hidden': 'true',
           'data-no-controls': !$nativeControls ? '' : undefined,
           ref(el: HTMLElement) {
@@ -125,8 +153,8 @@ function MediaOutlet({ provider, ...props }: MediaOutletProps) {
     : $mediaType
       ? React.createElement($mediaType === 'audio' ? 'audio' : 'video', {
           ...props,
-          controls: $nativeControls ? '' : null,
-          crossOrigin: typeof $crossorigin === 'boolean' ? '' : $crossorigin,
+          controls: $nativeControls ? true : null,
+          crossOrigin: typeof $crossOrigin === 'boolean' ? '' : $crossOrigin,
           poster: $mediaType === 'video' && $nativeControls && $poster ? $poster : null,
           preload: 'none',
           'aria-hidden': 'true',

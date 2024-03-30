@@ -1,8 +1,9 @@
-import { peek, tick } from 'maverick.js';
+import { tick, untrack } from 'maverick.js';
 import { DOMEvent, type InferEventDetail } from 'maverick.js/std';
 
 import type { MediaContext } from '../api/media-context';
 import type { MediaEvents } from '../api/media-events';
+import type { VideoQuality } from '../quality/video-quality';
 
 let seenAutoplayWarning = false;
 
@@ -37,63 +38,113 @@ export class MediaPlayerDelegate {
   ) {
     if (__SERVER__) return;
 
-    const { $state, logger } = this._media;
+    return untrack(async () => {
+      const { logger } = this._media,
+        {
+          autoPlay,
+          canPlay,
+          started,
+          duration,
+          seekable,
+          buffered,
+          remotePlaybackInfo,
+          playsInline,
+          savedState,
+        } = this._media.$state;
 
-    if (peek($state.canPlay)) return;
+      if (canPlay()) return;
 
-    const detail = {
-      duration: info?.duration ?? peek($state.duration),
-      seekable: info?.seekable ?? peek($state.seekable),
-      buffered: info?.buffered ?? peek($state.buffered),
-      provider: peek(this._media.$provider)!,
-    };
+      const detail = {
+        duration: info?.duration ?? duration(),
+        seekable: info?.seekable ?? seekable(),
+        buffered: info?.buffered ?? buffered(),
+        provider: this._media.$provider()!,
+      };
 
-    this._notify('can-play', detail, trigger);
+      this._notify('can-play', detail, trigger);
 
-    tick();
+      tick();
 
-    if (__DEV__) {
-      logger
-        ?.infoGroup('-~-~-~-~-~-~- ✅ MEDIA READY -~-~-~-~-~-~-')
-        .labelledLog('Media Store', { ...$state })
-        .labelledLog('Trigger Event', trigger)
-        .dispatch();
-    }
+      if (__DEV__) {
+        logger
+          ?.infoGroup('-~-~-~-~-~-~- ✅ MEDIA READY -~-~-~-~-~-~-')
+          .labelledLog('Media', this._media)
+          .labelledLog('Trigger Event', trigger)
+          .dispatch();
+      }
 
-    const provider = peek(this._media.$provider),
-      { storage } = this._media,
-      { muted, volume, playsinline, clipStartTime } = this._media.$props,
-      startTime = storage.data.time ?? clipStartTime();
+      let provider = this._media.$provider(),
+        { storage, qualities } = this._media,
+        { muted, volume, clipStartTime, playbackRate } = this._media.$props;
 
-    if (provider) {
-      provider.setVolume(storage.data.volume ?? peek(volume));
-      provider.setMuted(storage.data.muted ?? peek(muted));
-      provider.setPlaysinline?.(peek(playsinline));
-      if (startTime > 0) provider.setCurrentTime(startTime);
-    }
+      const savedPlaybackTime = savedState()?.currentTime,
+        savedPlayingState = savedState()?.paused === false,
+        startTime = savedPlaybackTime ?? (await storage?.getTime()) ?? clipStartTime(),
+        shouldAutoPlay =
+          savedPlayingState || (savedPlayingState !== false && !started() && autoPlay());
 
-    if ($state.canPlay() && $state.autoplay() && !$state.started()) {
-      await this._attemptAutoplay(trigger);
-    }
+      if (provider) {
+        provider.setVolume((await storage?.getVolume()) ?? volume());
+        provider.setMuted((await storage?.getMuted()) ?? muted());
+
+        const audioGain = (await storage?.getAudioGain()) ?? 1;
+        if (audioGain > 1) provider.audioGain?.setGain?.(audioGain);
+
+        provider.setPlaybackRate?.((await storage?.getPlaybackRate()) ?? playbackRate());
+        provider.setPlaysInline?.(playsInline());
+
+        if (startTime > 0) provider.setCurrentTime(startTime);
+      }
+
+      const prefQuality = await storage?.getVideoQuality();
+      if (prefQuality && qualities.length) {
+        let currentQuality: VideoQuality | null = null,
+          currentScore = Infinity;
+
+        for (const quality of qualities) {
+          const score =
+            Math.abs(prefQuality.width - quality.width) +
+            Math.abs(prefQuality.height - quality.height) +
+            (prefQuality.bitrate ? Math.abs(prefQuality.bitrate - (quality.bitrate ?? 0)) : 0);
+
+          // Lowest score wins (smallest diff between width/height/bitrate).
+          if (score < currentScore) {
+            currentQuality = quality;
+            currentScore = score;
+          }
+        }
+
+        if (currentQuality) currentQuality.selected = true;
+      }
+
+      if (canPlay() && shouldAutoPlay) {
+        await this._attemptAutoplay(trigger);
+      }
+
+      remotePlaybackInfo.set(null);
+    });
   }
 
   private async _attemptAutoplay(trigger?: Event) {
-    const { player, $state } = this._media;
+    const {
+      player,
+      $state: { autoPlaying, muted },
+    } = this._media;
 
-    $state.autoplaying.set(true);
+    autoPlaying.set(true);
 
-    const attemptEvent = new DOMEvent<void>('autoplay-attempt', { trigger });
+    const attemptEvent = new DOMEvent<void>('auto-play-attempt', { trigger });
 
     try {
       await player.play(attemptEvent);
     } catch (error) {
       if (__DEV__ && !seenAutoplayWarning) {
-        const muteMsg = !$state.muted()
+        const muteMsg = !muted()
           ? ' Attempting with volume muted will most likely resolve the issue.'
           : '';
 
         this._media.logger
-          ?.errorGroup('autoplay request failed')
+          ?.errorGroup('[vidstack] auto-play request failed')
           .labelledLog(
             'Message',
             `Autoplay was requested but failed most likely due to browser autoplay policies.${muteMsg}`,

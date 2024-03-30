@@ -2,15 +2,14 @@ import type dashjs from 'dashjs';
 import { peek } from 'maverick.js';
 import { camelToKebabCase, DOMEvent, listenEvent } from 'maverick.js/std';
 
+import type { MediaContext } from '../../core/api/media-context';
 import { QualitySymbol } from '../../core/quality/symbols';
 import { ListSymbol } from '../../foundation/list/symbols';
-import type { MediaSetupContext } from '../types';
 import type { DASHConstructor, DASHInstanceCallback } from './types';
 
 const toDOMEventType = (type: string) => camelToKebabCase(type);
 
 export class DASHController {
-  private _ctx!: MediaSetupContext;
   private _instance: dashjs.MediaPlayerClass | null = null;
 
   _config: Partial<dashjs.MediaPlayerSettingClass> = {};
@@ -20,11 +19,12 @@ export class DASHController {
     return this._instance;
   }
 
-  constructor(private _video: HTMLVideoElement) {}
+  constructor(
+    private _video: HTMLVideoElement,
+    private _ctx: MediaContext,
+  ) {}
 
-  setup(ctor: DASHConstructor, ctx: MediaSetupContext) {
-    this._ctx = ctx;
-
+  setup(ctor: DASHConstructor) {
     this._instance = ctor.MediaPlayer().create();
     this._instance.initialize(this._video, undefined, false);
     this._instance.updateSettings(this._config);
@@ -36,8 +36,12 @@ export class DASHController {
     this._instance.on('playbackError', (detail) => this._onError('playbackError', detail));
     for (const callback of this._callbacks) callback(this._instance);
 
-    ctx.player.dispatch(new DOMEvent('dash-instance', { detail: this._instance }));
+    this._ctx.player.dispatch(new DOMEvent('dash-instance', { detail: this._instance }));
 
+    this._instance.on(
+      ctor.MediaPlayer.events.FRAGMENT_LOADING_PROGRESS,
+      this._onFragLoading.bind(this),
+    );
     this._instance.on(ctor.MediaPlayer.events.TRACK_CHANGE_RENDERED, (detail: any) => {
       if (detail.mediaType === 'audio')
         this._onAudioSwitch(ctor.MediaPlayer.events.TRACK_CHANGE_RENDERED, detail);
@@ -49,10 +53,10 @@ export class DASHController {
       this._onLevelLoaded(ctor.MediaPlayer.events.STREAM_INITIALIZED, detail);
     });
 
-    ctx.qualities[QualitySymbol._enableAuto] = this._enableAutoQuality.bind(this);
+    this._ctx.qualities[QualitySymbol._enableAuto] = this._enableAutoQuality.bind(this);
 
-    listenEvent(ctx.qualities, 'change', this._onQualityChange.bind(this));
-    listenEvent(ctx.audioTracks, 'change', this._onAudioChange.bind(this));
+    listenEvent(this._ctx.qualities, 'change', this._onQualityChange.bind(this));
+    listenEvent(this._ctx.audioTracks, 'change', this._onAudioChange.bind(this));
   }
 
   private _dispatchDASHEvent(eventType: string, detail: any) {
@@ -123,7 +127,10 @@ export class DASHController {
     this._video.dispatchEvent(new DOMEvent<void>('canplay', { trigger: event }));
   }
 
-  private _onError(type: string, data: dashjs.ErrorEvent | dashjs.PlaybackErrorEvent) {
+  private _onError(
+    type: string,
+    data: dashjs.ErrorEvent | dashjs.PlaybackErrorEvent | dashjs.DownloadErrorEvent,
+  ) {
     if (__DEV__) {
       this._ctx.logger
         ?.errorGroup(`DASH error \`${type}\``)
@@ -137,20 +144,56 @@ export class DASHController {
     }
 
     if (data.error) {
-      switch (data.error) {
-        case 'download':
-          this._instance?.play();
-          break;
-        // case 'mediaError':
-        //   this._instance?.recoverMediaError();
-        //   break;
-        default:
-          // We can't recover here - better course of action?
-          this._instance?.destroy();
-          this._instance = null;
-          break;
+      if ('event' in data) {
+        switch (data.error) {
+          case 'download':
+            this._onNetworkError(data);
+            break;
+          // case 'mediaError':
+          //   this._instance?.recoverMediaError();
+          //   break;
+          default:
+            this._onFatalError(data);
+            break;
+        }
+      } else {
+        this._onFatalError(data);
       }
     }
+  }
+
+  private _onFragLoading() {
+    if (this._retryLoadingTimer >= 0) this._clearRetryTimer();
+  }
+
+  private _retryLoadingTimer = -1;
+  private _onNetworkError(error: dashjs.DownloadErrorEvent) {
+    this._clearRetryTimer();
+
+    this._instance?.play();
+
+    this._retryLoadingTimer = window.setTimeout(() => {
+      this._retryLoadingTimer = -1;
+      this._onFatalError(error);
+    }, 5000);
+  }
+
+  private _clearRetryTimer() {
+    clearTimeout(this._retryLoadingTimer);
+    this._retryLoadingTimer = -1;
+  }
+
+  private _onFatalError(
+    error: dashjs.ErrorEvent | dashjs.PlaybackErrorEvent | dashjs.DownloadErrorEvent,
+  ) {
+    // We can't recover here - better course of action?
+    this._instance?.destroy();
+    this._instance = null;
+    this._ctx.delegate._notify('error', {
+      message: error.messageData,
+      code: 1,
+      error: new Error(error.type),
+    });
   }
 
   private _enableAutoQuality() {

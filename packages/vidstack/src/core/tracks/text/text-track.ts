@@ -1,10 +1,11 @@
 import { DOMEvent, EventsTarget, isArray, isNumber, isString } from 'maverick.js/std';
-import type {
-  CaptionsFileFormat,
-  CaptionsParserFactory,
-  VTTCue,
-  VTTHeaderMetadata,
-  VTTRegion,
+import {
+  parseText,
+  type CaptionsFileFormat,
+  type CaptionsParserFactory,
+  type VTTCue,
+  type VTTHeaderMetadata,
+  type VTTRegion,
 } from 'media-captions';
 
 import { getRequestCredentials } from '../../../utils/network';
@@ -25,9 +26,9 @@ export interface VTTCueInit
 
 export interface VTTRegionInit extends Omit<Partial<VTTRegion>, 'id'>, Pick<VTTRegion, 'id'> {}
 
-export interface VTTJSONContent {
-  cues?: VTTCueInit;
-  regions?: VTTRegionInit;
+export interface VTTContent {
+  cues?: VTTCueInit[];
+  regions?: VTTRegionInit[];
 }
 
 export class TextTrack extends EventsTarget<TextTrackEvents> {
@@ -62,7 +63,7 @@ export class TextTrack extends EventsTarget<TextTrackEvents> {
   [TextTrackSymbol._readyState]: TextTrackReadyState = 0;
 
   /* @internal */
-  [TextTrackSymbol._crossorigin]?: () => string | null;
+  [TextTrackSymbol._crossOrigin]?: () => string | null;
 
   /* @internal */
   [TextTrackSymbol._onModeChange]: (() => void) | null = null;
@@ -134,7 +135,7 @@ export class TextTrack extends EventsTarget<TextTrackEvents> {
     } else if (!init.src) this[TextTrackSymbol._readyState] = 2;
 
     if (__DEV__ && isTrackCaptionKind(this) && !this.label) {
-      throw Error(`[vidstack]: captions text track created without label: \`${this.src}\``);
+      throw Error(`[vidstack] captions text track created without label: \`${this.src}\``);
     }
   }
 
@@ -229,13 +230,13 @@ export class TextTrack extends EventsTarget<TextTrackEvents> {
     this.dispatchEvent(new DOMEvent<void>('load-start'));
 
     try {
-      const { parseResponse, parseText, VTTCue, VTTRegion } = await import('media-captions'),
-        crossorigin = this[TextTrackSymbol._crossorigin]?.();
+      const { parseResponse, VTTCue, VTTRegion } = await import('media-captions'),
+        crossOrigin = this[TextTrackSymbol._crossOrigin]?.();
 
       if (!this.subtitleLoader || typeof this.subtitleLoader !== 'function') {
         const response = fetch(this.src, {
           headers: this.type === 'json' ? { 'Content-Type': 'application/json' } : undefined,
-          credentials: getRequestCredentials(crossorigin),
+          credentials: getRequestCredentials(crossOrigin),
         });
 
         if (this.type === 'json') {
@@ -304,7 +305,7 @@ export class TextTrack extends EventsTarget<TextTrackEvents> {
     this.dispatchEvent(new DOMEvent('error', { detail: error }));
   }
 
-  private _parseJSON(json: string | VTTJSONContent, VTTCue, VTTRegion) {
+  private _parseJSON(json: string | VTTContent, VTTCue, VTTRegion) {
     try {
       const { regions, cues } = parseJSONCaptionsFile(json, VTTCue, VTTRegion);
       this._regions = regions;
@@ -339,7 +340,7 @@ export interface TextTrackInit {
   /**
    * Used to directly pass in text track file contents.
    */
-  readonly content?: string | VTTJSONContent;
+  readonly content?: string | VTTContent;
   /**
    * The captions file format to be parsed or a custom parser factory (functions that returns a
    * captions parser). Supported types include: 'vtt', 'srt', 'ssa', 'ass', and 'json'.
@@ -445,7 +446,7 @@ export function isTrackCaptionKind(track: TextTrack): boolean {
 }
 
 export function parseJSONCaptionsFile(
-  json: string | VTTJSONContent,
+  json: string | VTTContent,
   Cue: typeof VTTCue,
   Region?: typeof VTTRegion,
 ) {

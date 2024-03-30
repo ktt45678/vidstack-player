@@ -6,15 +6,17 @@ import { menuContext, type MenuContext } from '../menu-context';
 import type { RadioOption } from '../radio/radio';
 import { RadioGroupController } from '../radio/radio-group-controller';
 
+export const DEFAULT_PLAYBACK_RATES = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+
 /**
  * This component manages playback rate radios.
  *
- * @docs {@link https://www.vidstack.io/docs/player/components/menu/playback-rate-menu}
+ * @docs {@link https://www.vidstack.io/docs/wc/player/components/menu/speed-radio-group}
  */
 export class SpeedRadioGroup extends Component<SpeedRadioGroupProps, {}, SpeedRadioGroupEvents> {
   static props: SpeedRadioGroupProps = {
     normalLabel: 'Normal',
-    rates: [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2],
+    rates: DEFAULT_PLAYBACK_RATES,
   };
 
   private _media!: MediaContext;
@@ -57,7 +59,7 @@ export class SpeedRadioGroup extends Component<SpeedRadioGroupProps, {}, SpeedRa
     const { rates, normalLabel } = this.$props;
     return rates().map((rate) => ({
       label: rate === 1 ? normalLabel : rate + '×',
-      value: rate + '',
+      value: rate.toString(),
     }));
   }
 
@@ -78,7 +80,7 @@ export class SpeedRadioGroup extends Component<SpeedRadioGroupProps, {}, SpeedRa
 
   private _getValue() {
     const { playbackRate } = this._media.$state;
-    return playbackRate() + '';
+    return playbackRate().toString();
   }
 
   private _onValueChange(value: string, trigger?: Event) {

@@ -13,9 +13,11 @@ import type { VTTCue } from 'media-captions';
 
 import { useMediaContext, type MediaContext } from '../../../../core/api/media-context';
 import type { TextTrack } from '../../../../core/tracks/text/text-track';
-import { isCueActive, observeActiveTextTrack } from '../../../../core/tracks/text/utils';
+import { isCueActive, watchActiveTextTrack } from '../../../../core/tracks/text/utils';
+import { requestScopedAnimationFrame } from '../../../../utils/dom';
 import { round } from '../../../../utils/number';
 import { formatSpokenTime, formatTime } from '../../../../utils/time';
+import type { ThumbnailSrc } from '../../thumbnails/thumbnail-loader';
 import { menuContext, type MenuContext } from '../menu-context';
 import type { RadioOption } from '../radio/radio';
 import { RadioGroupController } from '../radio/radio-group-controller';
@@ -24,7 +26,7 @@ import { RadioGroupController } from '../radio/radio-group-controller';
  * This component manages media chapters inside of a radio group.
  *
  * @attr data-thumbnails - Whether thumbnails are available.
- * @docs {@link https://www.vidstack.io/docs/player/components/menu/chapters-menu}
+ * @docs {@link https://www.vidstack.io/docs/wc/player/components/menu/chapters-radio-group}
  */
 export class ChaptersRadioGroup extends Component<
   ChapterRadioGroupProps,
@@ -32,14 +34,13 @@ export class ChaptersRadioGroup extends Component<
   ChaptersRadioGroupEvents
 > {
   static props: ChapterRadioGroupProps = {
-    thumbnails: '',
+    thumbnails: null,
   };
 
   private _media!: MediaContext;
   private _menu?: MenuContext;
   private _controller: RadioGroupController;
 
-  private _index = signal(0);
   private _track = signal<TextTrack | null>(null);
   private _cues = signal<readonly VTTCue[]>([]);
 
@@ -85,9 +86,9 @@ export class ChaptersRadioGroup extends Component<
       endTime = clipEndTime() || Infinity;
     return this._cues().map((cue, i) => ({
       cue,
-      value: i + '',
+      value: i.toString(),
       label: cue.text,
-      startTime: formatTime(Math.max(0, cue.startTime - startTime), false),
+      startTime: formatTime(Math.max(0, cue.startTime - startTime)),
       duration: formatSpokenTime(
         Math.min(endTime, cue.endTime) - Math.max(startTime, cue.startTime),
       ),
@@ -99,11 +100,10 @@ export class ChaptersRadioGroup extends Component<
   }
 
   protected override onConnect(el: HTMLElement) {
-    effect(this._watchValue.bind(this));
     effect(this._watchCurrentTime.bind(this));
     effect(this._watchControllerDisabled.bind(this));
     effect(this._watchTrack.bind(this));
-    observeActiveTextTrack(this._media.textTracks, 'chapters', this._track.set);
+    watchActiveTextTrack(this._media.textTracks, 'chapters', this._track.set);
   }
 
   protected _watchTrack() {
@@ -130,17 +130,13 @@ export class ChaptersRadioGroup extends Component<
     );
   }
 
-  private _watchValue() {
-    this._controller.value = this._getValue();
-  }
-
   private _watchCurrentTime() {
     if (!this._menu?._expanded()) return;
 
     const track = this._track();
 
     if (!track) {
-      this._index.set(-1);
+      this._controller.value = '-1';
       return;
     }
 
@@ -150,25 +146,23 @@ export class ChaptersRadioGroup extends Component<
       time = realCurrentTime(),
       activeCueIndex = this._cues().findIndex((cue) => isCueActive(cue, time));
 
-    this._index.set(activeCueIndex);
+    this._controller.value = activeCueIndex.toString();
 
     if (activeCueIndex >= 0) {
-      const cue = this._cues()[activeCueIndex],
-        radio = this.el!.querySelector(`[aria-checked='true']`),
-        cueStartTime = Math.max(startTime, cue.startTime),
-        duration = Math.min(endTime, cue.endTime) - cueStartTime,
-        playedPercent = (Math.max(0, time - cueStartTime) / duration) * 100;
+      requestScopedAnimationFrame(() => {
+        const cue = this._cues()[activeCueIndex],
+          radio = this.el!.querySelector(`[aria-checked='true']`),
+          cueStartTime = Math.max(startTime, cue.startTime),
+          duration = Math.min(endTime, cue.endTime) - cueStartTime,
+          playedPercent = (Math.max(0, time - cueStartTime) / duration) * 100;
 
-      radio && setStyle(radio as HTMLElement, '--progress', round(playedPercent, 3) + '%');
+        radio && setStyle(radio as HTMLElement, '--progress', round(playedPercent, 3) + '%');
+      });
     }
   }
 
   private _watchControllerDisabled() {
     this._menu?._disable(this.disabled);
-  }
-
-  private _getValue() {
-    return this._index() + '';
   }
 
   private _onValueChange(value: string, trigger?: Event) {
@@ -179,7 +173,7 @@ export class ChaptersRadioGroup extends Component<
       { clipStartTime } = this._media.$state;
 
     if (isNumber(index) && cues?.[index]) {
-      this._index.set(index);
+      this._controller.value = index.toString();
       this._media.remote.seek(cues[index].startTime - clipStartTime(), trigger);
       this.dispatch('change', { detail: cues[index], trigger });
     }
@@ -188,10 +182,11 @@ export class ChaptersRadioGroup extends Component<
 
 export interface ChapterRadioGroupProps {
   /**
-   * The absolute or relative URL to a [WebVTT](https://developer.mozilla.org/en-US/docs/Web/API/WebVTT_API)
-   * file resource.
+   * The thumbnails resource.
+   *
+   * @see {@link https://www.vidstack.io/docs/player/core-concepts/loading#thumbnails}
    */
-  thumbnails: string;
+  thumbnails: ThumbnailSrc;
 }
 
 export interface ChaptersRadioGroupEvents {

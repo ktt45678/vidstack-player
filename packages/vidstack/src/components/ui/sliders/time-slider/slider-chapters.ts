@@ -17,7 +17,7 @@ import {
 import { animationFrameThrottle, listenEvent } from 'maverick.js/std';
 import type { VTTCue } from 'media-captions';
 
-import { observeActiveTextTrack } from '../../../../core';
+import { watchActiveTextTrack } from '../../../../core';
 import { useMediaContext, type MediaContext } from '../../../../core/api/media-context';
 import type { TextTrack } from '../../../../core/tracks/text/text-track';
 import { round } from '../../../../utils/number';
@@ -70,8 +70,8 @@ export class SliderChapters extends Component<SliderChaptersProps, {}, SliderCha
   }
 
   protected override onAttach(el: HTMLElement): void {
-    observeActiveTextTrack(this._media.textTracks, 'chapters', this._setTrack.bind(this));
-    effect(this._onTrackChange.bind(this));
+    watchActiveTextTrack(this._media.textTracks, 'chapters', this._setTrack.bind(this));
+    effect(this._watchSource.bind(this));
   }
 
   protected override onConnect(): void {
@@ -113,6 +113,14 @@ export class SliderChapters extends Component<SliderChaptersProps, {}, SliderCha
 
   private _watch() {
     if (!this._refs.length) return;
+
+    effect(this._watchUpdates.bind(this));
+  }
+  private _watchUpdates() {
+    const { hidden } = this._sliderState;
+
+    if (hidden()) return;
+
     effect(this._watchContainerWidths.bind(this));
     effect(this._watchFillPercent.bind(this));
     effect(this._watchPointerPercent.bind(this));
@@ -120,8 +128,11 @@ export class SliderChapters extends Component<SliderChaptersProps, {}, SliderCha
   }
 
   private _watchContainerWidths() {
+    const cues = this._$cues();
+
+    if (!cues.length) return;
+
     let cue: VTTCue,
-      cues = this._$cues(),
       { clipStartTime, clipEndTime } = this._media.$state,
       startTime = clipStartTime(),
       endTime = clipEndTime() || cues[cues.length - 1].endTime,
@@ -144,7 +155,7 @@ export class SliderChapters extends Component<SliderChaptersProps, {}, SliderCha
   }
 
   private _watchFillPercent() {
-    let { liveEdge, ended, clipStartTime, clipEndTime } = this._media.$state,
+    let { liveEdge, clipStartTime, duration } = this._media.$state,
       { fillPercent, value } = this._sliderState,
       cues = this._$cues(),
       isLiveEdge = liveEdge(),
@@ -154,11 +165,15 @@ export class SliderChapters extends Component<SliderChaptersProps, {}, SliderCha
     let currentActiveIndex = isLiveEdge
       ? this._$cues.length - 1
       : this._findActiveChapterIndex(
-          currentChapter ? (currentChapter.startTime <= peek(value) ? prevActiveIndex : 0) : 0,
+          currentChapter
+            ? (currentChapter.startTime / duration()) * 100 <= peek(value)
+              ? prevActiveIndex
+              : 0
+            : 0,
           fillPercent(),
         );
 
-    if (isLiveEdge || ended() || !currentChapter) {
+    if (isLiveEdge || !currentChapter) {
       this._updateFillPercents(0, cues.length, '100%');
     } else if (currentActiveIndex > prevActiveIndex) {
       this._updateFillPercents(prevActiveIndex, currentActiveIndex, '100%');
@@ -202,8 +217,12 @@ export class SliderChapters extends Component<SliderChaptersProps, {}, SliderCha
 
   private _findActiveChapterIndex(startIndex: number, percent: number) {
     let chapterPercent = 0,
-      cues = this._$cues(),
-      { clipStartTime } = this._media.$state,
+      cues = this._$cues();
+
+    if (percent === 0) return 0;
+    else if (percent === 100) return cues.length - 1;
+
+    let { clipStartTime } = this._media.$state,
       startTime = clipStartTime(),
       endTime = this._getEndTime(cues);
 
@@ -245,7 +264,7 @@ export class SliderChapters extends Component<SliderChaptersProps, {}, SliderCha
   private _getEndTime(cues: VTTCue[]) {
     const { clipEndTime } = this._media.$state,
       endTime = clipEndTime();
-    return endTime > 0 ? endTime : cues[cues.length - 1].endTime;
+    return endTime > 0 ? endTime : cues[cues.length - 1]?.endTime || 0;
   }
 
   private _calcPercent(cue: VTTCue, percent: number, startTime: number, endTime: number) {
@@ -281,6 +300,7 @@ export class SliderChapters extends Component<SliderChaptersProps, {}, SliderCha
     cues = cues.filter((cue) => cue.startTime <= endTime && cue.endTime >= startTime);
 
     const firstCue = cues[0];
+
     // Fill any time gaps where chapters are missing.
     if (firstCue && firstCue.startTime > startTime) {
       chapters.push(new window.VTTCue(startTime, firstCue.startTime, ''));
@@ -302,11 +322,10 @@ export class SliderChapters extends Component<SliderChaptersProps, {}, SliderCha
     const lastCue = cues[cues.length - 1];
     if (lastCue) {
       chapters.push(lastCue);
-      if (
-        duration() >= 0 &&
-        (endTime === 0 || (endTime !== Infinity && lastCue.endTime < endTime)) &&
-        Math.abs(lastCue.endTime - duration()) > 1
-      ) {
+
+      // Fill gap at the end if the last chapter doesn't extend all the way.
+      const endTime = duration();
+      if (endTime >= 0 && endTime - lastCue.endTime > 1) {
         chapters.push(new window.VTTCue(lastCue.endTime, duration(), ''));
       }
     }
@@ -314,12 +333,24 @@ export class SliderChapters extends Component<SliderChaptersProps, {}, SliderCha
     return chapters;
   }
 
+  private _watchSource() {
+    const { source } = this._media.$state;
+    source();
+    this._onTrackChange();
+  }
+
   private _onTrackChange() {
     // Might run the "load" track event after the component is destroyed.
     if (!this.scope) return;
 
     const { disabled } = this.$props;
-    if (disabled()) return;
+
+    if (disabled()) {
+      this._$cues.set([]);
+      this._activeIndex.set(0);
+      this._bufferedIndex = 0;
+      return;
+    }
 
     const track = this._$track();
 
@@ -350,9 +381,12 @@ export class SliderChapters extends Component<SliderChaptersProps, {}, SliderCha
   private _onCuesChange = debounce(
     () => {
       const track = peek(this._$track);
+
       if (!this.scope || !track || !track.cues.length) return;
+
       this._$cues.set(this._fillGaps(track.cues));
       this._activeIndex.set(0);
+      this._bufferedIndex = 0;
     },
     150,
     true,

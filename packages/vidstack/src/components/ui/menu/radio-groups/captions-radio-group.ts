@@ -10,7 +10,7 @@ import { RadioGroupController } from '../radio/radio-group-controller';
 /**
  * This component manages caption/subtitle track radio options.
  *
- * @docs {@link https://www.vidstack.io/docs/player/components/menu/captions-menu-items}
+ * @docs {@link https://www.vidstack.io/docs/wc/player/components/menu/captions-radio-group}
  */
 export class CaptionsRadioGroup extends Component<
   CaptionsRadioGroupProps,
@@ -32,8 +32,8 @@ export class CaptionsRadioGroup extends Component<
 
   @prop
   get disabled() {
-    const { textTracks } = this._media.$state;
-    return textTracks().filter(isTrackCaptionKind).length === 0;
+    const { hasCaptions } = this._media.$state;
+    return !hasCaptions();
   }
 
   constructor() {
@@ -104,7 +104,7 @@ export class CaptionsRadioGroup extends Component<
       const track = this._media.textTracks.selected;
 
       if (track) {
-        const index = this._media.textTracks.toArray().indexOf(track);
+        const index = this._media.textTracks.indexOf(track);
         this._media.remote.changeTextTrackMode(index, 'disabled', trigger);
         this.dispatch('change', { detail: null, trigger });
       }

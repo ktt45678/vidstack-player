@@ -4,6 +4,7 @@ export * from './components/primitives/instances';
 // Core
 export type { PlayerSrc } from './source';
 export { type MediaPlayerProps, MediaPlayer } from './components/player';
+export { type MediaAnnouncerProps, MediaAnnouncer } from './components/announcer';
 export { type MediaProviderProps, MediaProvider } from './components/provider';
 export { type IconProps, Icon, type IconComponent } from './icon';
 export { Track, type TrackProps } from './components/text-track';
@@ -25,6 +26,11 @@ export type {
 
 // Buttons
 export { type ToggleButtonProps, ToggleButton } from './components/ui/buttons/toggle-button';
+export { type AirPlayButtonProps, AirPlayButton } from './components/ui/buttons/airplay-button';
+export {
+  type GoogleCastButtonProps,
+  GoogleCastButton,
+} from './components/ui/buttons/google-cast-button';
 export { type PlayButtonProps, PlayButton } from './components/ui/buttons/play-button';
 export { type CaptionButtonProps, CaptionButton } from './components/ui/buttons/caption-button';
 export {
@@ -39,13 +45,20 @@ export { type LiveButtonProps, LiveButton } from './components/ui/buttons/live-b
 // Slider
 export * as Slider from './components/ui/sliders/slider';
 export * as VolumeSlider from './components/ui/sliders/volume-slider';
+export * as QualitySlider from './components/ui/sliders/quality-slider';
+export * as AudioGainSlider from './components/ui/sliders/audio-gain-slider';
+export * as SpeedSlider from './components/ui/sliders/speed-slider';
 export * as TimeSlider from './components/ui/sliders/time-slider';
 export type {
   RootProps as SliderProps,
   ValueProps as SliderValueProps,
   PreviewProps as SliderPreviewProps,
+  StepsProps as SliderStepsProps,
 } from './components/ui/sliders/slider';
 export type { RootProps as VolumeSliderProps } from './components/ui/sliders/volume-slider';
+export type { RootProps as AudioGainSliderProps } from './components/ui/sliders/audio-gain-slider';
+export type { RootProps as SpeedSliderProps } from './components/ui/sliders/speed-slider';
+export type { RootProps as QualitySliderProps } from './components/ui/sliders/quality-slider';
 export type {
   RootProps as TimeSliderProps,
   ChaptersProps as SliderChapterProps,
@@ -76,6 +89,7 @@ export type {
 } from './components/ui/menu';
 
 // Display
+export { Title, type TitleProps } from './components/ui/title';
 export { ChapterTitle, type ChapterTitleProps } from './components/ui/chapter-title';
 export { type GestureProps, Gesture } from './components/ui/gesture';
 export { Captions, type CaptionsProps } from './components/ui/captions';
@@ -106,8 +120,8 @@ export type {
 
 // Hooks
 export * from './hooks/use-state';
+export * from './hooks/use-media-context';
 export * from './hooks/use-media-player';
-export * from './hooks/use-player-query';
 export * from './hooks/use-media-provider';
 export * from './hooks/use-media-remote';
 export * from './hooks/use-media-state';
@@ -117,9 +131,15 @@ export * from './hooks/use-slider-preview';
 export * from './hooks/use-text-cues';
 export * from './hooks/use-active-text-cues';
 export * from './hooks/use-active-text-track';
+export * from './hooks/use-chapter-title';
 export * from './hooks/create-text-track';
+export * from './hooks/options/use-audio-gain-options';
 export * from './hooks/options/use-audio-options';
 export * from './hooks/options/use-caption-options';
 export * from './hooks/options/use-chapter-options';
 export * from './hooks/options/use-video-quality-options';
 export * from './hooks/options/use-playback-rate-options';
+
+// Layouts
+export type { DefaultLayoutProps } from './components/layouts/default';
+export type { PlyrLayoutProps } from './components/layouts/plyr';

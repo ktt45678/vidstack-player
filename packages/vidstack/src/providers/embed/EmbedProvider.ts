@@ -2,7 +2,6 @@ import { effect, peek, signal } from 'maverick.js';
 import { isString, listenEvent } from 'maverick.js/std';
 
 import { appendParamsToURL } from '../../utils/network';
-import type { MediaSetupContext } from '../types';
 
 export abstract class EmbedProvider<Message> {
   protected _src = signal('');
@@ -37,10 +36,10 @@ export abstract class EmbedProvider<Message> {
     }
   }
 
-  setup(ctx: MediaSetupContext) {
-    effect(this._watchSrc.bind(this));
+  setup() {
     listenEvent(window, 'message' as any, this._onWindowMessage.bind(this) as any);
     listenEvent(this._iframe, 'load', this._onLoad.bind(this));
+    effect(this._watchSrc.bind(this));
   }
 
   protected _watchSrc() {
@@ -63,7 +62,7 @@ export abstract class EmbedProvider<Message> {
   protected _onWindowMessage(event: MessageEvent) {
     const origin = this._getOrigin(),
       isOriginMatch =
-        event.source === this._iframe?.contentWindow &&
+        (event.source === null || event.source === this._iframe?.contentWindow) &&
         (!isString(origin) || origin === event.origin);
 
     if (!isOriginMatch) return;

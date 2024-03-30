@@ -1,5 +1,6 @@
 import type { AudioProvider } from './audio/provider';
 import type { DASHProvider } from './dash/provider';
+import type { GoogleCastProvider } from './google-cast/provider';
 import type { HLSProvider } from './hls/provider';
 import type { VideoProvider } from './video/provider';
 import type { VimeoProvider } from './vimeo/provider';
@@ -33,6 +34,11 @@ export function isYouTubeProvider(provider: any): provider is YouTubeProvider {
 /** @see {@link https://www.vidstack.io/docs/player/providers/vimeo} */
 export function isVimeoProvider(provider: any): provider is VimeoProvider {
   return provider?.$$PROVIDER_TYPE === 'VIMEO';
+}
+
+/** @see {@link https://www.vidstack.io/docs/player/providers/google-cast} */
+export function isGoogleCastProvider(provider: any): provider is GoogleCastProvider {
+  return provider?.$$PROVIDER_TYPE === 'GOOGLE_CAST';
 }
 
 /** @see {@link https://developer.mozilla.org/en-US/docs/Web/API/HTMLAudioElement} */

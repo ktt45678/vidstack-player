@@ -1,7 +1,7 @@
 import { effect } from 'maverick.js';
 
-import type { MediaPlayerProps } from '..';
 import { MediaPlayerController } from '../api/player-controller';
+import type { MediaPlayerProps } from '../api/player-props';
 
 /**
  * Sync player props with internal store and dispatch change events.
@@ -13,22 +13,26 @@ export class MediaStateSync extends MediaPlayerController {
     if (__SERVER__) return;
 
     if (__DEV__) effect(this._watchLogLevel.bind(this));
-    effect(this._watchProvidedTypes.bind(this));
-    effect(this._watchTitle.bind(this));
+    effect(this._watchArtist.bind(this));
     effect(this._watchAutoplay.bind(this));
-    effect(this._watchPoster.bind(this));
-    effect(this._watchLoop.bind(this));
+    effect(this._watchClipTimes.bind(this));
     effect(this._watchControls.bind(this));
     effect(this._watchCrossOrigin.bind(this));
-    effect(this._watchPlaysinline.bind(this));
-    effect(this._watchClipTimes.bind(this));
-    effect(this._watchLiveTolerance.bind(this));
+    effect(this._watchDuration.bind(this));
     effect(this._watchLive.bind(this));
     effect(this._watchLiveEdge.bind(this));
+    effect(this._watchLiveTolerance.bind(this));
+    effect(this._watchLoop.bind(this));
+    effect(this._watchPlaysInline.bind(this));
+    effect(this._watchPoster.bind(this));
+    effect(this._watchProvidedTypes.bind(this));
+    effect(this._watchTitle.bind(this));
   }
 
   private _init() {
     const providedProps = {
+      duration: 'providedDuration',
+      loop: 'providedLoop',
       poster: 'providedPoster',
       streamType: 'providedStreamType',
       title: 'providedTitle',
@@ -53,16 +57,23 @@ export class MediaStateSync extends MediaPlayerController {
   // Sync "provided" props with internal state. Provided props are used to differentiate from
   // provider inferred values.
   private _watchProvidedTypes() {
-    const { viewType, streamType, title, poster } = this.$props;
-    this.$state.providedPoster.set(poster());
-    this.$state.providedStreamType.set(streamType());
-    this.$state.providedViewType.set(viewType());
-    this.$state.providedTitle.set(title());
+    const { viewType, streamType, title, poster, loop } = this.$props,
+      $state = this.$state;
+    $state.providedPoster.set(poster());
+    $state.providedStreamType.set(streamType());
+    $state.providedViewType.set(viewType());
+    $state.providedTitle.set(title());
+    $state.providedLoop.set(loop());
   }
 
   private _watchLogLevel() {
     if (!__DEV__) return;
     this.$state.logLevel.set(this.$props.logLevel());
+  }
+
+  private _watchArtist() {
+    const { artist } = this.$props;
+    this.$state.artist.set(artist());
   }
 
   private _watchTitle() {
@@ -71,14 +82,14 @@ export class MediaStateSync extends MediaPlayerController {
   }
 
   private _watchAutoplay() {
-    const autoplay = this.$props.autoplay();
-    this.$state.autoplay.set(autoplay);
-    this.dispatch('autoplay-change', { detail: autoplay });
+    // autoplay prop is deprecated, we're syncing for backwards compatibility.
+    const autoPlay = this.$props.autoPlay() || this.$props.autoplay();
+    this.$state.autoPlay.set(autoPlay);
+    this.dispatch('auto-play-change', { detail: autoPlay });
   }
 
   private _watchLoop() {
-    const loop = this.$props.loop();
-    this.$state.loop.set(loop);
+    const loop = this.$state.loop();
     this.dispatch('loop-change', { detail: loop });
   }
 
@@ -93,14 +104,22 @@ export class MediaStateSync extends MediaPlayerController {
   }
 
   private _watchCrossOrigin() {
-    const crossorigin = this.$props.crossorigin();
-    this.$state.crossorigin.set(crossorigin === true ? '' : crossorigin);
+    // crossorigin prop is deprecated, we're syncing for backwards compatibility.
+    const _crossOrigin = this.$props.crossOrigin() ?? this.$props.crossorigin(),
+      value = _crossOrigin === true ? '' : (_crossOrigin as '');
+    this.$state.crossOrigin.set(value);
   }
 
-  private _watchPlaysinline() {
-    const playsinline = this.$props.playsinline();
-    this.$state.playsinline.set(playsinline);
-    this.dispatch('playsinline-change', { detail: playsinline });
+  private _watchDuration() {
+    const { providedDuration } = this.$state;
+    providedDuration.set(this.$props.duration());
+  }
+
+  private _watchPlaysInline() {
+    // playsinline prop is deprecated, we're syncing for backwards compatibility.
+    const inline = this.$props.playsInline() || this.$props.playsinline();
+    this.$state.playsInline.set(inline);
+    this.dispatch('plays-inline-change', { detail: inline });
   }
 
   private _watchClipTimes() {
