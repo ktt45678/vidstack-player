@@ -8,6 +8,7 @@ import {
 import { ScreenOrientationController } from '../../foundation/orientation/controller';
 import { Queue } from '../../foundation/queue/queue';
 import { RequestQueue } from '../../foundation/queue/request-queue';
+import type { GoogleCastPromptError } from '../../providers';
 import type { GoogleCastLoader } from '../../providers/google-cast/loader';
 import type { MediaProviderAdapter } from '../../providers/types';
 import { coerceToError } from '../../utils/error';
@@ -198,6 +199,24 @@ export class MediaRequestManager extends MediaPlayerController implements MediaR
 
       throw error;
     }
+  }
+
+  _setAudioGain(gain: number, trigger?: Event) {
+    const { audioGain, canSetAudioGain } = this.$state;
+
+    if (audioGain() === gain) return;
+
+    const provider = this._$provider();
+
+    if (!provider?.audioGain || !canSetAudioGain()) {
+      throw Error('[vidstack] audio gain api not available');
+    }
+
+    if (trigger) {
+      this._request._queue._enqueue('media-audio-gain-change-request', trigger);
+    }
+
+    provider.audioGain.setGain(gain);
   }
 
   _seekToLiveEdge(trigger?: Event) {
@@ -394,9 +413,13 @@ export class MediaRequestManager extends MediaPlayerController implements MediaR
       const { canGoogleCast } = this.$state;
 
       if (!peek(canGoogleCast)) {
-        throw new Error(
+        const error = Error(
           __DEV__ ? 'Google Cast not available on this platform.' : 'Cast not available.',
-        );
+        ) as GoogleCastPromptError;
+
+        error.code = 'CAST_NOT_AVAILABLE';
+
+        throw error;
       }
 
       preconnect('https://www.gstatic.com');
@@ -425,7 +448,7 @@ export class MediaRequestManager extends MediaPlayerController implements MediaR
     } catch (error) {
       this._request._queue._delete('media-google-cast-request');
 
-      if (__DEV__ && (error as Error).message !== '"cancel"') {
+      if (__DEV__) {
         this._logError('google cast request failed', error, trigger);
       }
 
@@ -484,7 +507,7 @@ export class MediaRequestManager extends MediaPlayerController implements MediaR
     const lockType = peek(this.$props.fullscreenOrientation),
       isFullscreen = event.detail;
 
-    if (isUndefined(lockType) || !this._orientation.supported) return;
+    if (isUndefined(lockType) || lockType === 'none' || !this._orientation.supported) return;
 
     if (isFullscreen) {
       if (this._orientation.locked) return;
@@ -628,14 +651,11 @@ export class MediaRequestManager extends MediaPlayerController implements MediaR
   }
 
   ['media-audio-gain-change-request'](event: RE.MediaAudioGainChangeRequestEvent) {
-    const { audioGain, canSetAudioGain } = this.$state;
-    if (audioGain() === event.detail || !canSetAudioGain()) return;
-
-    const provider = this._$provider();
-    if (!provider?.audioGain) return;
-
-    this._request._queue._enqueue('media-audio-gain-change-request', event);
-    provider.audioGain.setGain(event.detail);
+    try {
+      this._setAudioGain(event.detail, event);
+    } catch (e) {
+      // no-op
+    }
   }
 
   ['media-quality-change-request'](event: RE.MediaQualityChangeRequestEvent) {
@@ -696,7 +716,8 @@ export class MediaRequestManager extends MediaPlayerController implements MediaR
 
   ['media-seek-request'](event: RE.MediaSeekRequestEvent) {
     const { seekableStart, seekableEnd, ended, canSeek, live, userBehindLiveEdge, clipStartTime } =
-      this.$state;
+        this.$state,
+      seekTime = event.detail;
 
     if (ended()) this._request._replaying = true;
 
@@ -705,10 +726,11 @@ export class MediaRequestManager extends MediaPlayerController implements MediaR
     this._request._seeking = false;
     this._request._queue._delete(key);
 
-    const boundTime = Math.min(
-      Math.max(seekableStart() + 0.1, event.detail + clipStartTime()),
-      seekableEnd() - 0.1,
-    );
+    const clippedTime = seekTime + clipStartTime(),
+      isEnd = Math.floor(clippedTime) === Math.floor(seekableEnd()),
+      boundTime = isEnd
+        ? seekableEnd()
+        : Math.min(Math.max(seekableStart() + 0.1, clippedTime), seekableEnd() - 0.1);
 
     if (!Number.isFinite(boundTime) || !canSeek()) return;
 

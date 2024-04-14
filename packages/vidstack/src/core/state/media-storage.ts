@@ -11,7 +11,7 @@ export interface MediaStorage {
   setMuted?(muted: boolean): Promise<void>;
 
   getTime(): Promise<number | null>;
-  setTime?(time: number): Promise<void>;
+  setTime?(time: number, ended?: boolean): Promise<void>;
 
   getLang(): Promise<string | null>;
   setLang?(lang: string | null): Promise<void>;
@@ -27,6 +27,11 @@ export interface MediaStorage {
 
   getAudioGain(): Promise<number | null>;
   setAudioGain?(gain: number | null): Promise<void>;
+
+  /**
+   * Called when media is ready for playback and new data can be loaded.
+   */
+  onLoad?(src: Src): void | Promise<void>;
 
   /**
    * Called when the `mediaId` has changed. This method can return a function to be called
@@ -91,9 +96,13 @@ export class LocalMediaStorage implements MediaStorage {
     return this._data.time;
   }
 
-  async setTime(time: number) {
-    this._data.time = time;
-    this.saveTime();
+  async setTime(time: number, ended: boolean) {
+    const shouldClear = time < 0;
+
+    this._data.time = !shouldClear ? time : null;
+
+    if (shouldClear || ended) this.saveTime();
+    else this.saveTimeThrottled();
   }
 
   async getLang() {
@@ -167,11 +176,12 @@ export class LocalMediaStorage implements MediaStorage {
     localStorage.setItem(this.playerId, data);
   }
 
-  protected saveTime = throttle(() => {
+  protected saveTimeThrottled = throttle(this.saveTime.bind(this), 1000);
+  private saveTime() {
     if (__SERVER__ || !this.mediaId) return;
     const data = (this._data.time ?? 0).toString();
     localStorage.setItem(this.mediaId, data);
-  }, 1000);
+  }
 }
 
 interface SavedMediaData {

@@ -72,8 +72,8 @@ importers:
         version: 1.0.2
     devDependencies:
       '@maverick-js/cli':
-        specifier: 0.41.4
-        version: 0.41.4
+        specifier: 0.41.5
+        version: 0.41.5
       '@rollup/plugin-node-resolve':
         specifier: ^15.2.0
         version: 15.2.3(rollup@4.12.1)
@@ -93,11 +93,11 @@ importers:
         specifier: ^11.0.0
         version: 11.2.0
       maverick.js:
-        specifier: 0.41.4
-        version: 0.41.4
+        specifier: 0.41.5
+        version: 0.41.5
       media-icons:
-        specifier: ^1.0.0
-        version: 1.0.0
+        specifier: ^1.1.3
+        version: 1.1.3
       react:
         specifier: ^18.0.0
         version: 18.2.0
@@ -119,6 +119,9 @@ importers:
       rollup-plugin-esbuild:
         specifier: ^6.1.0
         version: 6.1.1(esbuild@0.19.12)(rollup@4.12.1)
+      type-fest:
+        specifier: ^3.8.0
+        version: 3.13.1
       typescript:
         specifier: ^5.3.0
         version: 5.4.2
@@ -139,8 +142,8 @@ importers:
         specifier: ^1.4.4
         version: 1.6.3
       '@maverick-js/cli':
-        specifier: 0.41.4
-        version: 0.41.4
+        specifier: 0.41.5
+        version: 0.41.5
       '@open-wc/semantic-dom-diff':
         specifier: ^0.20.0
         version: 0.20.1
@@ -157,8 +160,8 @@ importers:
         specifier: ^10.4.2
         version: 10.4.18(postcss@8.4.35)
       dashjs:
-        specifier: ^4.7.3
-        version: 4.7.3(jsdoc@4.0.2)
+        specifier: ^4.7.4
+        version: 4.7.4
       es-module-lexer:
         specifier: ^1.4.0
         version: 1.4.1
@@ -190,11 +193,11 @@ importers:
         specifier: ^2.7.4
         version: 2.8.0
       maverick.js:
-        specifier: 0.41.4
-        version: 0.41.4
+        specifier: 0.41.5
+        version: 0.41.5
       media-icons:
-        specifier: ^1.0.0
-        version: 1.0.0
+        specifier: ^1.1.3
+        version: 1.1.3
       postcss:
         specifier: ^8.4.0
         version: 8.4.35
@@ -980,10 +983,10 @@ packages:
       '@lit-labs/ssr-dom-shim': 1.2.0
     dev: true
 
-  /@maverick-js/cli@0.41.4:
+  /@maverick-js/cli@0.41.5:
     resolution:
       {
-        integrity: sha512-2gWclosu0AYpZjBZ50aYi4besI97Fs5sF92+IkSaWLayHS7DpwNBkYLPHeK7MX836vAwd/IBtc1Ju98LeK0vQg==,
+        integrity: sha512-2lC4uT7Oc349S6T/h/x+GQd0mlNo3DxRUuADMvqHKfI+fMMVNz3ZBhzd9RDt3tF5JVAuhka/3puN8SFemDSQ+Q==,
       }
     engines: { node: '>=16' }
     hasBin: true
@@ -2917,26 +2920,22 @@ packages:
       }
     dev: true
 
-  /dashjs@4.7.3(jsdoc@4.0.2):
+  /dashjs@4.7.4:
     resolution:
       {
-        integrity: sha512-jauFKD2wK0ZOAK6KJTEh8/SoTrdUoMW5V37HZacTDVso110vAKyJtXV+qfakEPavkPb8KEadiGGp+HC1i/XMFQ==,
+        integrity: sha512-+hldo25QPP3H/NOwqUrvt4uKdMse60/Gsz9AUAnoYfhga8qHWq4nWiojUosOiigbigkDTCAn9ORcvUaKCvmfCA==,
       }
     dependencies:
       bcp-47-match: 1.0.3
       bcp-47-normalize: 1.1.1
-      clean-jsdoc-theme: 4.2.17(jsdoc@4.0.2)
       codem-isoboxer: 0.3.9
       es6-promise: 4.2.8
       fast-deep-equal: 2.0.1
-      foodoc: 0.0.9
       html-entities: 1.4.0
-      imsc: 1.1.4
+      imsc: 1.1.5
       localforage: 1.10.0
       path-browserify: 1.0.1
       ua-parser-js: 1.0.37
-    transitivePeerDependencies:
-      - jsdoc
     dev: true
 
   /data-urls@4.0.0:
@@ -3586,31 +3585,6 @@ packages:
       onetime: 6.0.0
       signal-exit: 3.0.7
       strip-final-newline: 3.0.0
-    dev: true
-
-  /exit@0.1.2:
-    resolution:
-      {
-        integrity: sha512-Zk/eNKV2zbjpKzrsQ+n1G6poVbErQxJ0LBOJXaKZ1EViLzH+hrLu9cdXI4zw9dBQJslwBEpbQ2P1oS7nDxs6jQ==,
-      }
-    engines: { node: '>= 0.8.0' }
-    dev: true
-
-  /expand-tilde@2.0.2:
-    resolution:
-      {
-        integrity: sha512-A5EmesHW6rfnZ9ysHQjPdJRni0SRar0tjtG5MNtm9n5TUvsYU8oozprtRD4AqHxcZWWlVuAmQo2nWKfN9oyjTw==,
-      }
-    engines: { node: '>=0.10.0' }
-    dependencies:
-      homedir-polyfill: 1.0.3
-    dev: true
-
-  /extend@3.0.2:
-    resolution:
-      {
-        integrity: sha512-fjquC59cD7CyW6urNXK0FBufkZcoiGG80wTuPujX590cB5Ttln20E2UB4S/WARVqhXffZl2LNgS+gQdPIIim/g==,
-      }
     dev: true
 
   /fast-deep-equal@2.0.1:
@@ -4612,10 +4586,10 @@ packages:
       }
     dev: true
 
-  /imsc@1.1.4:
+  /imsc@1.1.5:
     resolution:
       {
-        integrity: sha512-s/WbXG6IbeW6X/8sBJWcQD22mwRcnpI55b8Kr3sbcONUaeMLkpHle/PE1xcMN9HJrMc5idrCwNV7wtZ8EBsFnw==,
+        integrity: sha512-V8je+CGkcvGhgl2C1GlhqFFiUOIEdwXbXLiu1Fcubvvbo+g9inauqT3l0pNYXGoLPBj3jxtZz9t+wCopMkwadQ==,
       }
     dependencies:
       sax: 1.2.1
@@ -4672,17 +4646,6 @@ packages:
       {
         integrity: sha512-lJUL9imLTNi1ZfXT+DU6rBBdbiKGBuay9B6xGSPVjUeQwaH1RIGqef8RZkUtHioLmSNpPR5M4HVKJGm1j8FWVQ==,
       }
-    dev: true
-
-  /is-absolute@1.0.0:
-    resolution:
-      {
-        integrity: sha512-dOWoqflvcydARa360Gvv18DZ/gRuHKi2NU/wU5X1ZFzdYfH29nkiNZsF3mp4OJ3H4yo9Mx8A/uAGNzpzPN3yBA==,
-      }
-    engines: { node: '>=0.10.0' }
-    dependencies:
-      is-relative: 1.0.0
-      is-windows: 1.0.2
     dev: true
 
   /is-alphabetical@1.0.4:
@@ -5277,23 +5240,6 @@ packages:
       immediate: 3.0.6
     dev: true
 
-  /liftup@3.0.1:
-    resolution:
-      {
-        integrity: sha512-yRHaiQDizWSzoXk3APcA71eOI/UuhEkNN9DiW2Tt44mhYzX4joFoCZlxsSOF7RyeLlfqzFLQI1ngFq3ggMPhOw==,
-      }
-    engines: { node: '>=10' }
-    dependencies:
-      extend: 3.0.2
-      findup-sync: 4.0.0
-      fined: 1.2.0
-      flagged-respawn: 1.0.1
-      is-plain-object: 2.0.4
-      object.map: 1.0.1
-      rechoir: 0.7.1
-      resolve: 1.22.8
-    dev: true
-
   /lilconfig@2.1.0:
     resolution:
       {
@@ -5642,64 +5588,10 @@ packages:
       semver: 7.6.0
     dev: true
 
-  /make-iterator@1.0.1:
+  /maverick.js@0.41.5:
     resolution:
       {
-        integrity: sha512-pxiuXh0iVEq7VM7KMIhs5gxsfxCux2URptUQaXo4iZZJxBAzTPOLE2BumO5dbfVYq/hBJFBR/a1mFDmOx5AGmw==,
-      }
-    engines: { node: '>=0.10.0' }
-    dependencies:
-      kind-of: 6.0.3
-    dev: true
-
-  /map-cache@0.2.2:
-    resolution:
-      {
-        integrity: sha512-8y/eV9QQZCiyn1SprXSrCmqJN0yNRATe+PO8ztwqrvrbdRLA3eYJF0yaR0YayLWkMbsQSKWS9N2gPcGEc4UsZg==,
-      }
-    engines: { node: '>=0.10.0' }
-    dev: true
-
-  /markdown-it-anchor@8.6.7(@types/markdown-it@12.2.3)(markdown-it@12.3.2):
-    resolution:
-      {
-        integrity: sha512-FlCHFwNnutLgVTflOYHPW2pPcl2AACqVzExlkGQNsi4CJgqOHN7YTgDd4LuhgN1BFO3TS0vLAruV1Td6dwWPJA==,
-      }
-    peerDependencies:
-      '@types/markdown-it': '*'
-      markdown-it: '*'
-    dependencies:
-      '@types/markdown-it': 12.2.3
-      markdown-it: 12.3.2
-    dev: true
-
-  /markdown-it@12.3.2:
-    resolution:
-      {
-        integrity: sha512-TchMembfxfNVpHkbtriWltGWc+m3xszaRD0CZup7GFFhzIgQqxIfn3eGj1yZpfuflzPvfkt611B2Q/Bsk1YnGg==,
-      }
-    hasBin: true
-    dependencies:
-      argparse: 2.0.1
-      entities: 2.1.0
-      linkify-it: 3.0.3
-      mdurl: 1.0.1
-      uc.micro: 1.0.6
-    dev: true
-
-  /marked@4.3.0:
-    resolution:
-      {
-        integrity: sha512-PRsaiG84bK+AMvxziE/lCFss8juXjNaWzVbN5tXAm4XjeaS9NAHhop+PjQxz2A9h8Q4M/xGmzP8vqNwy6JeK0A==,
-      }
-    engines: { node: '>= 12' }
-    hasBin: true
-    dev: true
-
-  /maverick.js@0.41.4:
-    resolution:
-      {
-        integrity: sha512-WvVnemNaNqVHat5HkezgNj7Amy6D9aDLf7/qZrGEfXnrwZGF+n8V/KOVmTd5jfZ3KeOVHlkHycsAny/Nj9R/jA==,
+        integrity: sha512-txETfrOv4YEgp/tlHRD7sa/NxAVhC8s6TuOYPvURgHprPif4Kc/S+vo/jN57Z17JKcZaVG9G8RaK+K8XWi8sEQ==,
       }
     engines: { node: '>=16' }
     dev: true
@@ -5739,10 +5631,10 @@ packages:
     engines: { node: '>=16' }
     dev: false
 
-  /media-icons@1.0.0:
+  /media-icons@1.1.3:
     resolution:
       {
-        integrity: sha512-NpGZOUqNLz5BhvGB1CkB/ejinnsiQQCjwNMrz4X6e9PO5E+am44jo75fnxCdXSVEp445B3U3gSbwYyGR9GQV2w==,
+        integrity: sha512-WuG+bbqXdmmMFwCzoH1bazo5z4R0Mzcx7TZE1jaD2y5NyY4og5QqlkJZCW1VkirAdfiVxUB+z8yTlxOg5NRGKQ==,
       }
     engines: { node: '>=16' }
     dev: true
@@ -6247,16 +6139,6 @@ packages:
         integrity: sha512-CiyeOxFT/JZyN5m0z9PfXw4SCBJ6Sygz1Dpl0wqjlhDEGGBP1GnsUVEL0p63hoG1fcj3fHynXi9NYO4nWOL+qQ==,
       }
     engines: { node: '>= 0.8' }
-    dev: true
-
-  /pascal-case@3.1.2:
-    resolution:
-      {
-        integrity: sha512-uWlGT3YSnK9x3BQJaOdcZwrnV6hPpd8jFH1/ucpiLRPh/2zCVJKS19E4GvYHvaCcACn3foXZ0cLB9Wrx1KGe5g==,
-      }
-    dependencies:
-      no-case: 3.0.4
-      tslib: 2.6.2
     dev: true
 
   /path-browserify@1.0.1:
@@ -6996,18 +6878,6 @@ packages:
       {
         integrity: sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg==,
       }
-    dev: true
-
-  /sanitize-html@1.27.5:
-    resolution:
-      {
-        integrity: sha512-M4M5iXDAUEcZKLXkmk90zSYWEtk5NH3JmojQxKxV371fnMh+x9t1rqdmXaGoyEHw3z/X/8vnFhKjGL5xFGOJ3A==,
-      }
-    dependencies:
-      htmlparser2: 4.1.0
-      lodash: 4.17.21
-      parse-srcset: 1.0.2
-      postcss: 7.0.39
     dev: true
 
   /sax@1.2.1:
@@ -7804,13 +7674,6 @@ packages:
     resolution:
       {
         integrity: sha512-bhTyI94tZofjo+Dn8SN6Zv8nBDvyXTymAdM3LDI/0IboIUwTu1rEhW7v2TfiVsoYWgkQ4kOVqnI8APUFbIQIFQ==,
-      }
-    dev: true
-
-  /uc.micro@1.0.6:
-    resolution:
-      {
-        integrity: sha512-8Y75pvTYkLJW2hWQHXxoqRgV7qb9B+9vFEtidML+7koHUFapnVJAZ6cKs+Qjz5Aw3aZWHMC6u0wJE3At+nSGwA==,
       }
     dev: true
 

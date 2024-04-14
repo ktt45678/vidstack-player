@@ -4,21 +4,12 @@ import type { ListReadonlyChangeEvent } from '../..//foundation/list/list';
 import { SelectList, type SelectListItem } from '../../foundation/list/select-list';
 
 /**
- * @see {@link https://vidstack.io/docs/player/core-concepts/audio-tracks}
+ * @see {@link https://vidstack.io/docs/player/api/audio-tracks}
  */
-export class AudioTrackList extends SelectList<AudioTrack, AudioTrackListEvents> {
-  getById(id: string): AudioTrack | null {
-    if (id === '') return null;
-    return this._items.find((track) => track.id === id) ?? null;
-  }
-
-  indexOf(track: AudioTrack) {
-    return this._items.indexOf(track);
-  }
-}
+export class AudioTrackList extends SelectList<AudioTrack, AudioTrackListEvents> {}
 
 /**
- * @see {@link https://vidstack.io/docs/player/core-concepts/audio-tracks}
+ * @see {@link https://vidstack.io/docs/player/api/audio-tracks}
  */
 export interface AudioTrack extends SelectListItem {
   /**

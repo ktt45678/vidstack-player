@@ -1,3 +1,5 @@
+import type { Writable } from 'type-fest';
+
 import type { LogLevel } from '../../foundation/logger/log-level';
 import type { ScreenOrientationLockType } from '../../foundation/orientation/types';
 import type { GoogleCastOptions } from '../../providers/google-cast/types';
@@ -10,6 +12,7 @@ import type { MediaLoadingStrategy, MediaPosterLoadingStrategy } from './types';
 
 export const mediaPlayerProps: MediaPlayerProps = {
   artist: '',
+  artwork: null,
   autoplay: false,
   autoPlay: false,
   clipStartTime: 0,
@@ -56,8 +59,9 @@ export type PlayerSrc = MediaSrc | MediaSrc[];
 export interface MediaPlayerProps
   // Prefer picking off the `MediaStore` type to ensure docs are kept in-sync.
   extends Pick<
-    MediaState,
+    Writable<MediaState>,
     | 'artist'
+    | 'artwork'
     | 'autoPlay'
     | 'clipStartTime'
     | 'clipEndTime'
@@ -97,7 +101,7 @@ export interface MediaPlayerProps
   /**
    * The URL and optionally type of the current media resource/s to be considered for playback.
    *
-   * @see {@link https://vidstack.io/docs/player/core-concepts/loading#loading-source}
+   * @see {@link https://vidstack.io/docs/player/core-concepts/loading#sources}
    * @see {@link https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/src}
    * @see {@link https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/srcObject}
    */
@@ -116,7 +120,7 @@ export interface MediaPlayerProps
    * - `custom`: media will wait for the `startLoading()` method or `media-start-loading` event.
    * - `play`: media will delay loading until there is a play request.
    *
-   *  @see {@link https://vidstack.io/docs/player/core-concepts/loading#loading-strategies}
+   *  @see {@link https://vidstack.io/docs/player/core-concepts/loading#load-strategies}
    */
   load: MediaLoadingStrategy;
   /**
@@ -127,7 +131,7 @@ export interface MediaPlayerProps
    * - `visible`: poster will delay loading until the provider has entered the viewport.
    * - `custom`: poster will wait for the `startLoadingPoster()` method or `media-poster-start-loading` event.
    *
-   *  @see {@link https://vidstack.io/docs/player/core-concepts/loading#loading-strategies}
+   *  @see {@link https://vidstack.io/docs/player/core-concepts/loading#load-strategies}
    */
   posterLoad: MediaPosterLoadingStrategy;
   /**
@@ -144,7 +148,7 @@ export interface MediaPlayerProps
    * This method will indicate the orientation to lock the screen to when in fullscreen mode and
    * the Screen Orientation API is available.
    */
-  fullscreenOrientation: ScreenOrientationLockType | undefined;
+  fullscreenOrientation: ScreenOrientationLockType | 'none' | undefined;
   /**
    * Google Cast options.
    *

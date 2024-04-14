@@ -13,7 +13,7 @@ import {
 } from './text-track';
 
 /**
- * @see {@link https://vidstack.io/docs/player/core-concepts/text-tracks}
+ * @see {@link https://vidstack.io/docs/player/api/text-tracks}
  */
 export class TextTrackList extends List<TextTrack, TextTrackListEvents> {
   private _canLoad = false;
@@ -31,6 +31,11 @@ export class TextTrackList extends List<TextTrack, TextTrackListEvents> {
   get selected() {
     const track = this._items.find((t) => t.mode === 'showing' && isTrackCaptionKind(t));
     return track ?? null;
+  }
+
+  get selectedIndex() {
+    const selected = this.selected;
+    return selected ? this.indexOf(selected) : -1;
   }
 
   get preferredLang() {
@@ -81,20 +86,12 @@ export class TextTrackList extends List<TextTrack, TextTrackListEvents> {
     return this;
   }
 
-  getById(id: string): TextTrack | null {
-    return this._items.find((track) => track.id === id) ?? null;
-  }
-
   getByKind(kind: TextTrackKind | TextTrackKind[]): TextTrack[] {
     const kinds = Array.isArray(kind) ? kind : [kind];
     return this._items.filter((track) => kinds.includes(track.kind));
   }
 
-  indexOf(track: TextTrack) {
-    return this._items.indexOf(track);
-  }
-
-  /* @internal */
+  /** @internal */
   [TextTrackSymbol._canLoad]() {
     if (this._canLoad) return;
     for (const track of this._items) track[TextTrackSymbol._canLoad]();

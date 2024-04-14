@@ -132,6 +132,9 @@ export class MediaPlayer
   @prop
   readonly canPlayQueue = new RequestQueue();
 
+  @prop
+  readonly remoteControl: MediaRemoteControl;
+
   private get _provider() {
     return this._media.$provider() as AnyMediaProvider | null;
   }
@@ -164,7 +167,9 @@ export class MediaPlayer
     }
 
     if (__DEV__) context.logger = new Logger();
-    context.remote = new MediaRemoteControl(__DEV__ ? context.logger : undefined);
+    context.remote = this.remoteControl = new MediaRemoteControl(
+      __DEV__ ? context.logger : undefined,
+    );
     context.remote.setPlayer(this);
     context.$iosControls = computed(this._isIOSControls.bind(this));
     context.textTracks = new TextTrackList();
@@ -267,7 +272,7 @@ export class MediaPlayer
     setAttribute(
       this.el!,
       'aria-label',
-      `${typeText} Player` + (currentTitle ? `- ${currentTitle}` : ''),
+      `${typeText} Player` + (currentTitle ? ` - ${currentTitle}` : ''),
     );
 
     // Title attribute is removed to prevent popover interfering with user hovering over player.
@@ -429,7 +434,7 @@ export class MediaPlayer
   /**
    * A list of all `VideoQuality` objects representing the set of available video renditions.
    *
-   * @see {@link https://vidstack.io/docs/player/core-concepts/quality#quality-list}
+   * @see {@link https://vidstack.io/docs/player/api/video-quality}
    */
   @prop
   get qualities(): VideoQualityList {
@@ -439,7 +444,7 @@ export class MediaPlayer
   /**
    * A list of all `AudioTrack` objects representing the set of available audio tracks.
    *
-   * @see {@link https://vidstack.io/docs/player/core-concepts/audio-tracks}
+   * @see {@link https://vidstack.io/docs/player/api/audio-tracks}
    */
   @prop
   get audioTracks(): AudioTrackList {
@@ -449,7 +454,7 @@ export class MediaPlayer
   /**
    * A list of all `TextTrack` objects representing the set of available text tracks.
    *
-   * @see {@link https://vidstack.io/docs/player/core-concepts/text-tracks}
+   * @see {@link https://vidstack.io/docs/player/api/text-tracks}
    */
   @prop
   get textTracks(): TextTrackList {
@@ -459,8 +464,6 @@ export class MediaPlayer
   /**
    * Contains text renderers which are responsible for loading, parsing, and rendering text
    * tracks.
-   *
-   * @see {@link https://vidstack.io/docs/player/core-concepts/text-tracks#text-renderer}
    */
   @prop
   get textRenderers(): TextRenderers {
@@ -536,12 +539,15 @@ export class MediaPlayer
       peek(() => {
         if (!this._provider) return;
 
-        const boundTime = Math.min(
-          Math.max(seekableStart() + 0.1, time + clipStartTime()),
-          seekableEnd() - 0.1,
-        );
+        const clippedTime = time + clipStartTime(),
+          isEnd = Math.floor(clippedTime) === Math.floor(seekableEnd()),
+          boundTime = isEnd
+            ? seekableEnd()
+            : Math.min(Math.max(seekableStart() + 0.1, clippedTime), seekableEnd() - 0.1);
 
-        if (Number.isFinite(boundTime)) this._provider.setCurrentTime(boundTime);
+        if (Number.isFinite(boundTime)) {
+          this._provider.setCurrentTime(boundTime);
+        }
       });
     });
   }
@@ -606,7 +612,7 @@ export class MediaPlayer
         playerId = isString(storageValue) ? storageValue : this.el?.id,
         mediaId = computed(this._computeMediaId.bind(this));
 
-      effect(() => storage!.onChange!(source(), mediaId(), playerId));
+      effect(() => storage!.onChange!(source(), mediaId(), playerId || undefined));
     }
 
     this._media.storage = storage;
@@ -653,7 +659,7 @@ export class MediaPlayer
    * Attempts to display the player in fullscreen. The promise will resolve if successful, and
    * reject if not. This method will throw if any fullscreen API is _not_ currently available.
    *
-   * @see {@link https://vidstack.io/docs/player/core-concepts/fullscreen}
+   * @see {@link https://vidstack.io/docs/player/api/fullscreen}
    */
   @method
   async enterFullscreen(target?: MediaFullscreenRequestTarget, trigger?: Event) {
@@ -664,7 +670,7 @@ export class MediaPlayer
    * Attempts to display the player inline by exiting fullscreen. This method will throw if any
    * fullscreen API is _not_ currently available.
    *
-   * @see {@link https://vidstack.io/docs/player/core-concepts/fullscreen}
+   * @see {@link https://vidstack.io/docs/player/api/fullscreen}
    */
   @method
   async exitFullscreen(target?: MediaFullscreenRequestTarget, trigger?: Event) {
@@ -676,7 +682,7 @@ export class MediaPlayer
    * not supported. This method will also return a `PictureInPictureWindow` if the current
    * provider supports it.
    *
-   * @see {@link https://vidstack.io/docs/player/core-concepts/picture-in-picture}
+   * @see {@link https://vidstack.io/docs/player/api/picture-in-picture}
    */
   @method
   enterPictureInPicture(trigger?: Event) {
@@ -687,7 +693,7 @@ export class MediaPlayer
    * Attempts to display the player in inline by exiting picture-in-picture mode. This method
    * will throw if not supported.
    *
-   * @see {@link https://vidstack.io/docs/player/core-concepts/picture-in-picture}
+   * @see {@link https://vidstack.io/docs/player/api/picture-in-picture}
    */
   @method
   exitPictureInPicture(trigger?: Event) {
@@ -698,7 +704,7 @@ export class MediaPlayer
    * Sets the current time to the live edge (i.e., `duration`). This is a no-op for non-live
    * streams and will throw if called before media is ready for playback.
    *
-   * @see {@link https://vidstack.io/docs/player/core-concepts/live#live-edge}
+   * @see {@link https://vidstack.io/docs/player/api/live}
    */
   @method
   seekToLiveEdge(trigger?: Event): void {
@@ -709,7 +715,7 @@ export class MediaPlayer
    * Called when media can begin loading. Calling this method will trigger the initial provider
    * loading process. Calling it more than once has no effect.
    *
-   * @see {@link https://vidstack.io/docs/player/core-concepts/loading#loading-strategies}
+   * @see {@link https://vidstack.io/docs/player/core-concepts/loading#load-strategies}
    */
   @method
   startLoading(trigger?: Event): void {
@@ -719,7 +725,7 @@ export class MediaPlayer
   /**
    * Called when the poster image can begin loading. Calling it more than once has no effect.
    *
-   * @see {@link https://vidstack.io/docs/player/core-concepts/loading#loading-strategies}
+   * @see {@link https://vidstack.io/docs/player/core-concepts/loading#load-strategies}
    */
   @method
   startLoadingPoster(trigger?: Event) {
@@ -741,6 +747,16 @@ export class MediaPlayer
   @method
   requestGoogleCast(trigger?: Event) {
     return this._requestMgr._requestGoogleCast(trigger);
+  }
+
+  /**
+   * Set the audio gain, amplifying volume and enabling a maximum volume above 100%.
+   *
+   * @see {@link https://vidstack.io/docs/player/api/audio-gain}
+   */
+  @method
+  setAudioGain(gain: number, trigger?: Event) {
+    return this._requestMgr._setAudioGain(gain, trigger);
   }
 
   override destroy() {

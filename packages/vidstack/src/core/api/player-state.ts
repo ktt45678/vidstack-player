@@ -22,6 +22,7 @@ export interface MediaPlayerState extends MediaState {}
 
 export const mediaState = new State<MediaState>({
   artist: '',
+  artwork: null,
   audioTrack: null,
   audioTracks: [],
   autoPlay: false,
@@ -361,14 +362,14 @@ export interface MediaState {
   /**
    * Whether media is allowed to begin loading. This depends on the `load` player prop.
    *
-   * @see {@link https://vidstack.io/docs/player/core-concepts/loading#loading-strategies}
+   * @see {@link https://vidstack.io/docs/player/core-concepts/loading#load-strategies}
    */
   canLoad: boolean;
   /**
    * Whether the media poster is allowed to begin loading. This depends on the `posterLoad`
    * player prop.
    *
-   * @see {@link https://vidstack.io/docs/player/core-concepts/loading#loading-strategies}
+   * @see {@link https://vidstack.io/docs/player/core-concepts/loading#load-strategies}
    */
   canLoadPoster: boolean;
   /**
@@ -749,6 +750,10 @@ export interface MediaState {
    */
   artist: string;
   /**
+   * Images to be included in the Media Session API.
+   */
+  artwork: MediaImage[] | null;
+  /**
    * The list of all available text tracks.
    */
   textTracks: TextTrack[];
@@ -819,37 +824,37 @@ export interface MediaState {
 
   // !!! INTERNALS !!!
 
-  /* @internal */
+  /** @internal */
   autoPlaying: boolean;
-  /* @internal */
+  /** @internal */
   providedTitle: string;
-  /* @internal */
+  /** @internal */
   inferredTitle: string;
-  /* @internal */
+  /** @internal */
   providedLoop: boolean;
-  /* @internal */
+  /** @internal */
   userPrefersLoop: boolean;
-  /* @internal - Unclipped current time. */
+  /** @internal - Unclipped current time. */
   realCurrentTime: number;
-  /* @internal */
+  /** @internal */
   providedPoster: string;
-  /* @internal */
+  /** @internal */
   intrinsicDuration: number;
-  /* @internal */
+  /** @internal */
   realDuration: number;
-  /* @internal */
+  /** @internal */
   providedDuration: number;
-  /* @internal */
+  /** @internal */
   inferredPoster: string;
-  /* @internal */
+  /** @internal */
   inferredViewType: MediaViewType;
-  /* @internal */
+  /** @internal */
   providedViewType: MediaViewType;
-  /* @internal */
+  /** @internal */
   providedStreamType: MediaStreamType;
-  /* @internal */
+  /** @internal */
   inferredStreamType: MediaStreamType;
-  /* @internal */
+  /** @internal */
   liveSyncPosition: number | null;
   /** @internal */
   savedState: { paused?: boolean; currentTime?: number } | null;

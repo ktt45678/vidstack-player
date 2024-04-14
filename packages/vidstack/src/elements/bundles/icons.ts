@@ -1,7 +1,3 @@
-import { defineCustomElement } from 'maverick.js/element';
+import 'media-icons/element';
 
-import { MediaIconElement } from '../define/icon-element';
-
-defineCustomElement(MediaIconElement);
-
-export type * from '../../components/icons/types';
+export type { IconType } from 'media-icons';

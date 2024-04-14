@@ -1,6 +1,6 @@
 import { isString } from 'maverick.js/std';
 
-import type { ParsedDashManifest, Src } from '../core';
+import type { ParsedDASHManifest, Src } from '../core';
 import { canPlayHLSNatively } from './support';
 
 // https://github.com/cookpete/react-player/blob/master/src/patterns.js#L16
@@ -30,20 +30,8 @@ export const VIDEO_TYPES = new Set<string>([
   'video/mpeg',
 ]);
 
-export const DASH_VIDEO_EXTENSIONS = /\.(mpd)($|\?)/i;
-
-export const DASH_VIDEO_TYPES = new Set<string>([
-  // Dash xml
-  'application/dash+xml',
-  // Common xml
-  'application/xml',
-  // Included for completeness
-  'video/dash+xml',
-  'video/xml',
-  'video/dash',
-]);
-
 export const HLS_VIDEO_EXTENSIONS = /\.(m3u8)($|\?)/i;
+export const DASH_VIDEO_EXTENSIONS = /\.(mpd)($|\?)/i;
 
 // Taken from video.js
 export const HLS_VIDEO_TYPES = new Set<string>([
@@ -59,6 +47,17 @@ export const HLS_VIDEO_TYPES = new Set<string>([
   'video/x-mpegurl',
   'video/mpegurl',
   'application/mpegurl',
+]);
+
+export const DASH_VIDEO_TYPES = new Set<string>([
+  // Dash xml
+  'application/dash+xml',
+  // Common xml
+  'application/xml',
+  // Included for completeness
+  'video/dash+xml',
+  'video/xml',
+  'video/dash',
 ]);
 
 export function isAudioSrc({ src, type }: Src): boolean {
@@ -78,16 +77,12 @@ export function isVideoSrc(src: Src): boolean {
     : src.type === 'video/object';
 }
 
-export function isDashSrc({ src, type }: Src): boolean {
-  return (
-    isParsedManifest(src) ||
-    (isString(src) && DASH_VIDEO_EXTENSIONS.test(src)) ||
-    DASH_VIDEO_TYPES.has(type)
-  );
-}
-
 export function isHLSSrc({ src, type }: Src): boolean {
   return (isString(src) && HLS_VIDEO_EXTENSIONS.test(src)) || HLS_VIDEO_TYPES.has(type);
+}
+
+export function isDASHSrc({ src, type }: Src): boolean {
+  return (isParsedManifest(src) || (isString(src) && DASH_VIDEO_EXTENSIONS.test(src)) || DASH_VIDEO_TYPES.has(type));
 }
 
 export function canGoogleCastSrc(src: Src): boolean {
@@ -100,7 +95,7 @@ export function isMediaStream(src: unknown): src is MediaStream {
   );
 }
 
-export function isParsedManifest(src: any): src is ParsedDashManifest {
+export function isParsedManifest(src: any): src is ParsedDASHManifest {
   return typeof src === 'object' && 'protocol' in src && src.protocol === 'DASH';
 }
 

@@ -18,8 +18,12 @@ import {
   YouTubeProviderLoader,
   type MediaProviderLoader,
 } from '../../providers';
-import { resolveStreamTypeFromHLSManifest } from '../../utils/hls';
-import { isHLSSrc } from '../../utils/mime';
+import { DASHProviderLoader } from '../../providers/dash/loader';
+import {
+  resolveStreamTypeFromDASHManifest,
+  resolveStreamTypeFromHLSManifest,
+} from '../../utils/manifest';
+import { isDASHSrc, isHLSSrc } from '../../utils/mime';
 import { getRequestCredentials, preconnect } from '../../utils/network';
 import { isHLSSupported } from '../../utils/support';
 
@@ -41,7 +45,8 @@ export class SourceSelection {
     private _loader: WriteSignal<MediaProviderLoader | null>,
     customLoaders: MediaProviderLoader[] = [],
   ) {
-    const HLS_LOADER = new HLSProviderLoader(),
+    const DASH_LOADER = new DASHProviderLoader(),
+      HLS_LOADER = new HLSProviderLoader(),
       VIDEO_LOADER = new VideoProviderLoader(),
       AUDIO_LOADER = new AudioProviderLoader(),
       YOUTUBE_LOADER = new YouTubeProviderLoader(),
@@ -52,8 +57,8 @@ export class SourceSelection {
       const remoteLoader = _media.$state.remotePlaybackLoader();
 
       const loaders = _media.$props.preferNativeHLS()
-        ? [VIDEO_LOADER, AUDIO_LOADER, HLS_LOADER, ...EMBED_LOADERS, ...customLoaders]
-        : [HLS_LOADER, VIDEO_LOADER, AUDIO_LOADER, ...EMBED_LOADERS, ...customLoaders];
+        ? [VIDEO_LOADER, AUDIO_LOADER, DASH_LOADER, HLS_LOADER, ...EMBED_LOADERS, ...customLoaders]
+        : [HLS_LOADER, VIDEO_LOADER, AUDIO_LOADER, DASH_LOADER, ...EMBED_LOADERS, ...customLoaders];
 
       return remoteLoader ? [remoteLoader, ...loaders] : loaders;
     });
@@ -254,6 +259,15 @@ export class SourceSelection {
             })
             .catch(noop);
         }
+      } else if (isDASHSrc(source)) {
+        resolveStreamTypeFromDASHManifest(source.src as string, {
+          credentials: getRequestCredentials(crossOrigin),
+          signal: abort.signal,
+        })
+          .then((streamType) => {
+            this._notify('stream-type-change', streamType);
+          })
+          .catch(noop);
       } else {
         this._notify('stream-type-change', 'on-demand');
       }
@@ -316,15 +330,9 @@ function normalizeSrc(src: MediaPlayerProps['src']): Src[] {
   return (isArray(src) ? src : [src])
     .map((src) => {
       if (isString(src)) {
-        return {
-          src,
-          type: '?',
-        };
+        return { src, type: inferType(src) };
       } else {
-        return {
-          ...src,
-          type: inferType(src.src, src.type),
-        };
+        return { ...src, type: inferType(src.src, src.type) };
       }
     })
     .sort((a) => (a.type === '?' ? 1 : -1));
@@ -337,7 +345,7 @@ function inferType(src: unknown, type?: string) {
     return sourceTypes.get(src)!;
   } else if (!isString(src) || src.startsWith('blob:')) {
     return 'video/object';
-  } else if (src.includes('youtube')) {
+  } else if (src.includes('youtube') || src.includes('youtu.be')) {
     return 'video/youtube';
   } else if (
     src.includes('vimeo') &&

@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 
 import prompt from 'enquirer';
 import { execa } from 'execa';
+import fsExtra from 'fs-extra';
 import kleur from 'kleur';
 import minimist from 'minimist';
 import semver from 'semver';
@@ -17,6 +18,7 @@ const require = createRequire(import.meta.url),
   args = minimist(process.argv.slice(2)),
   isDryRun = args.dry,
   isNext = args.next,
+  isCDNOnly = args.cdn,
   skippedPackages = ['@ktt45678/vidstack-react'],
   currentVersion = require('../package.json').version,
   packagesDir = fs.readdirSync(path.resolve(__dirname, '../packages')),
@@ -95,6 +97,11 @@ async function main() {
     return;
   }
 
+  if (isCDNOnly) {
+    await publishCDN(targetVersion);
+    return;
+  }
+
   step('Updating cross dependencies...');
   updateVersions(targetVersion);
 
@@ -130,6 +137,8 @@ async function main() {
   step('Pushing to GitHub...');
   await runIfNotDry('git', ['push', 'origin', `refs/tags/${tag}`]);
   await runIfNotDry('git', ['push', 'origin', 'custom']);
+
+  await publishCDN(targetVersion);
 
   if (isDryRun) {
     console.log(`\nDry run finished - run git diff to see package changes.`);
@@ -195,7 +204,59 @@ async function publishPackage(pkgName, version, runIfNotDry) {
     return;
   }
 
+  step(`Publishing ${pkgName}...`);
+
+  try {
+    await runIfNotDry(
+      'yarn',
+      ['publish', '--new-version', version, '--tag', getReleaseTag(version), '--access', 'public'],
+      { cwd: pkgRoot, stdio: 'pipe' },
+    );
+    console.log(kleur.green(`\n✅ Successfully published ${pkgName}@${version}`));
+  } catch (e) {
+    if (/** @type {any} */ (e).stderr.match(/previously published/)) {
+      console.log(kleur.red(`\n🚫 Skipping already published: ${pkgName}`));
+    } else {
+      throw e;
+    }
+  }
+}
+
+async function publishCDN(version) {
+  step('Publishing CDN...');
+
+  await run('pnpm', ['-F', 'vidstack', 'build:cdn']);
+
+  const pkgRoot = getPkgRoot('vidstack'),
+    cdnDir = path.resolve(pkgRoot, 'dist-cdn'),
+    cdnPkgPath = path.resolve(cdnDir, 'package.json');
+
+  // Copy over styles.
+  fsExtra.copySync(path.resolve(pkgRoot, 'player/styles'), path.resolve(cdnDir, 'styles/player'));
+
+  const packageJson = {
+    name: '@vidstack/cdn',
+    version,
+    license: 'MIT',
+    type: 'module',
+    repository: { type: 'git', url: 'https://github.com/vidstack/player.git' },
+    bugs: { url: 'https://github.com/vidstack/player/issues' },
+  };
+
+  fs.writeFileSync(cdnPkgPath, JSON.stringify(packageJson, null, 2));
+
+  await runIfNotDry(
+    'yarn',
+    ['publish', '--new-version', version, '--tag', getReleaseTag(version), '--access', 'public'],
+    { cwd: cdnDir, stdio: 'pipe' },
+  );
+
+  console.log(kleur.green(`\n✅ Successfully published @vidstack/cdn@${version}`));
+}
+
+function getReleaseTag(version) {
   let releaseTag = null;
+
   if (args.tag) {
     releaseTag = args.tag;
   } else if (version.includes('alpha')) {
@@ -208,25 +269,7 @@ async function publishPackage(pkgName, version, runIfNotDry) {
     releaseTag = isNext ? 'next' : 'latest';
   }
 
-  step(`Publishing ${pkgName}...`);
-
-  try {
-    await runIfNotDry(
-      'yarn',
-      ['publish', '--new-version', version, '--tag', releaseTag, '--access', 'public'],
-      {
-        cwd: pkgRoot,
-        stdio: 'pipe',
-      },
-    );
-    console.log(kleur.green(`\n✅ Successfully published ${pkgName}@${version}`));
-  } catch (e) {
-    if (/** @type {any} */ (e).stderr.match(/previously published/)) {
-      console.log(kleur.red(`\n🚫 Skipping already published: ${pkgName}`));
-    } else {
-      throw e;
-    }
-  }
+  return releaseTag;
 }
 
 if (isDryRun) console.log(kleur.cyan('\n☂️  Running in dry mode...\n'));

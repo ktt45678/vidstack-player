@@ -33,7 +33,7 @@ export interface VTTContent {
 
 export class TextTrack extends EventsTarget<TextTrackEvents> {
   static createId(track: TextTrack | TextTrackInit) {
-    return `id::${track.type}-${track.kind}-${track.src ?? track.label}`;
+    return `vds-${track.type}-${track.kind}-${track.src ?? track.label ?? '?'}`;
   }
 
   readonly src?: string;
@@ -59,18 +59,19 @@ export class TextTrack extends EventsTarget<TextTrackEvents> {
   private _cues: VTTCue[] = [];
   private _activeCues: VTTCue[] = [];
 
-  /* @internal */
+  /** @internal */
   [TextTrackSymbol._readyState]: TextTrackReadyState = 0;
 
-  /* @internal */
+  /** @internal */
   [TextTrackSymbol._crossOrigin]?: () => string | null;
 
-  /* @internal */
+  /** @internal */
   [TextTrackSymbol._onModeChange]: (() => void) | null = null;
 
-  /* @internal */
+  /** @internal */
   [TextTrackSymbol._native]: {
     default?: boolean;
+    managed?: boolean;
     track: {
       mode: TextTrackMode;
       addCue(cue: any): void;
@@ -120,19 +121,10 @@ export class TextTrack extends EventsTarget<TextTrackEvents> {
     if (!this.type) this.type = 'vtt';
 
     if (!__SERVER__ && init.content) {
-      import('media-captions').then(({ parseText, VTTCue, VTTRegion }) => {
-        if (!isString(init.content) || init.type === 'json') {
-          this._parseJSON(init.content!, VTTCue, VTTRegion);
-          if (this.readyState !== 3) this._readyState();
-        } else {
-          parseText(init.content!, { type: init.type as 'vtt' }).then(({ cues, regions }) => {
-            this._cues = cues;
-            this._regions = regions;
-            this._readyState();
-          });
-        }
-      });
-    } else if (!init.src) this[TextTrackSymbol._readyState] = 2;
+      this._parseContent(init);
+    } else if (!init.src) {
+      this[TextTrackSymbol._readyState] = 2;
+    }
 
     if (__DEV__ && isTrackCaptionKind(this) && !this.label) {
       throw Error(`[vidstack] captions text track created without label: \`${this.src}\``);
@@ -148,8 +140,8 @@ export class TextTrack extends EventsTarget<TextTrackEvents> {
     if (i === length) this._cues.push(cue);
     else this._cues.splice(i, 0, cue);
 
-    // Avoid infinite loop by checking if cue came from native track.
-    if (trigger?.type !== 'cuechange') {
+    // Avoid infinite loop by adding native text track cues back.
+    if (!(cue instanceof TextTrackCue)) {
       this[TextTrackSymbol._native]?.track.addCue(cue);
     }
 
@@ -191,7 +183,7 @@ export class TextTrack extends EventsTarget<TextTrackEvents> {
     this[TextTrackSymbol._onModeChange]?.();
   }
 
-  /* @internal */
+  /** @internal */
   [TextTrackSymbol._updateActiveCues](currentTime: number, trigger?: Event) {
     this._currentTime = currentTime;
     if (this.mode === 'disabled' || !this._cues.length) return;
@@ -217,17 +209,37 @@ export class TextTrack extends EventsTarget<TextTrackEvents> {
     if (changed) this._activeCuesChanged(trigger);
   }
 
-  /* @internal */
+  /** @internal */
   [TextTrackSymbol._canLoad]() {
     this._canLoad = true;
     if (this._mode !== 'disabled') this._load();
   }
 
+  private _parseContent(init: TextTrackInit) {
+    import('media-captions').then(({ parseText, VTTCue, VTTRegion }) => {
+      if (!isString(init.content) || init.type === 'json') {
+        this._parseJSON(init.content!, VTTCue, VTTRegion);
+        if (this.readyState !== 3) this._ready();
+      } else {
+        parseText(init.content!, { type: init.type as 'vtt' }).then(({ cues, regions }) => {
+          this._cues = cues;
+          this._regions = regions;
+          this._ready();
+        });
+      }
+    });
+  }
+
   private async _load() {
-    if (!this._canLoad || !this.src || this[TextTrackSymbol._readyState] > 0) return;
+    if (!this._canLoad || this[TextTrackSymbol._readyState] > 0) return;
 
     this[TextTrackSymbol._readyState] = 1;
     this.dispatchEvent(new DOMEvent<void>('load-start'));
+
+    if (!this.src) {
+      this._ready();
+      return;
+    }
 
     try {
       const { parseResponse, VTTCue, VTTRegion } = await import('media-captions'),
@@ -281,18 +293,20 @@ export class TextTrack extends EventsTarget<TextTrackEvents> {
         }
       }
 
-      this._readyState();
+      this._ready();
     } catch (error) {
-      this._errorState(error);
+      this._error(error);
     }
   }
 
-  private _readyState() {
+  private _ready() {
     this[TextTrackSymbol._readyState] = 2;
 
     if (!this.src || this.type !== 'vtt') {
-      const nativeTrack = this[TextTrackSymbol._native]?.track;
-      if (nativeTrack) for (const cue of this._cues) nativeTrack.addCue(cue);
+      const native = this[TextTrackSymbol._native];
+      if (native && !native.managed) {
+        for (const cue of this._cues) native.track.addCue(cue);
+      }
     }
 
     const loadEvent = new DOMEvent<void>('load');
@@ -300,7 +314,7 @@ export class TextTrack extends EventsTarget<TextTrackEvents> {
     this.dispatchEvent(loadEvent);
   }
 
-  private _errorState(error: unknown) {
+  private _error(error: unknown) {
     this[TextTrackSymbol._readyState] = 3;
     this.dispatchEvent(new DOMEvent('error', { detail: error }));
   }
@@ -315,7 +329,7 @@ export class TextTrack extends EventsTarget<TextTrackEvents> {
         console.error(`[vidstack] failed to parse JSON captions at: \`${this.src}\`\n\n`, error);
       }
 
-      this._errorState(error);
+      this._error(error);
     }
   }
 

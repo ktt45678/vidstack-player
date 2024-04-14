@@ -124,7 +124,8 @@ export function getSourceBuffer(): typeof SourceBuffer | undefined {
 }
 
 /**
- * Whether `hls.js` is supported in this environment.
+ * Whether `hls.js` is supported in this environment. Checks whether `MediaSource` or
+ * `ManagedMediaSource` and a valid `SourceBuffer` API are available.
  *
  * @see {@link https://github.com/video-dev/hls.js/blob/master/src/is-supported.ts}
  */
@@ -154,15 +155,9 @@ export function isHLSSupported(): boolean {
 }
 
 /**
- * Whether `dash.js` is supported in this environment.
- *
- * @see {@link https://github.com/Dash-Industry-Forum/dash.js/blob/development/src/streaming/utils/Capabilities.js}
+ * Whether `dashjs` is supported in this environment. Checks whether `MediaSource` or
+ * `ManagedMediaSource` and a valid `SourceBuffer` API are available.
  */
-export function isDashSupported(): boolean {
-  if (__SERVER__) return false;
-
-  const hasManagedMediaSource = 'ManagedMediaSource' in window;
-  const hasWebKit = 'WebKitMediaSource' in window;
-  const hasMediaSource = 'MediaSource' in window;
-  return hasManagedMediaSource || hasWebKit || hasMediaSource;
+export function isDASHSupported(): boolean {
+  return isHLSSupported();
 }

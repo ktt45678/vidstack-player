@@ -1,9 +1,8 @@
 import { isNumber, isString } from 'maverick.js/std';
 import type { SetRequired } from 'type-fest';
+import type { ParsedDASHManifest } from './types';
 
-import type { ParsedDashManifest } from '../api/types';
-
-export type MediaSrc = string | AudioSrc | VideoSrc | DashSrc | HLSSrc | YouTubeSrc | VimeoSrc;
+export type MediaSrc = string | AudioSrc | VideoSrc | HLSSrc | DASHSrc | YouTubeSrc | VimeoSrc;
 
 export type MediaSrcObject = MediaStream | MediaSource | Blob;
 
@@ -57,18 +56,6 @@ export interface VideoSrcMeta {
   codec?: string;
 }
 
-export interface DashSrc {
-  src: string | ParsedDashManifest;
-  type: DashMimeType;
-}
-
-export type DashMimeType =
-  | 'application/dash+xml'
-  | 'application/xml'
-  | 'video/dash+xml'
-  | 'video/xml'
-  | 'video/dash';
-
 export interface HLSSrc {
   src: string;
   type: HLSMimeType;
@@ -82,6 +69,18 @@ export type HLSMimeType =
   | 'video/x-mpegurl'
   | 'video/mpegurl'
   | 'application/mpegurl';
+
+export interface DASHSrc {
+  src: string | ParsedDASHManifest;
+  type: DASHMimeType;
+}
+
+export type DASHMimeType =
+  | 'application/dash+xml'
+  | 'application/xml'
+  | 'video/dash+xml'
+  | 'video/xml'
+  | 'video/dash';
 
 export interface YouTubeSrc {
   src: string;

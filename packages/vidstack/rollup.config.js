@@ -1,4 +1,6 @@
 import fs from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { nodeResolve } from '@rollup/plugin-node-resolve';
 import chokidar from 'chokidar';
@@ -12,28 +14,22 @@ import esbuildPlugin from 'rollup-plugin-esbuild';
 const MODE_WATCH = process.argv.includes('-w'),
   MODE_TYPES = process.argv.includes('--config-types'),
   MODE_CDN = process.argv.includes('--config-cdn'),
-  MODE_PLUGINS = process.argv.includes('--config-plugins');
+  MODE_PLUGINS = process.argv.includes('--config-plugins'),
+  MODE_CSS = process.argv.includes('--config-css');
 
 /** @type {Record<string, string | false>} */
 const MANGLE_CACHE = !MODE_TYPES ? await buildMangleCache() : {};
 
-const NPM_EXTERNAL_PACKAGES = ['dashjs', 'hls.js', 'media-captions', 'media-icons', 'jassub'],
-  CDN_EXTERNAL_PACKAGES = ['media-captions', 'media-icons'],
-  PLUGINS_EXTERNAL_PACKAGES = ['vite', 'rollup', /webpack/, /rspack/, 'esbuild', 'unplugin'],
-  NPM_BUNDLES = [
-    defineNPMBundle({ type: 'server' }),
-    defineNPMBundle({ type: 'dev' }),
-    defineNPMBundle({ type: 'prod' }),
+const NPM_EXTERNAL_PACKAGES = [
+    'hls.js',
+    'dashjs',
+    'media-captions',
+    'media-icons',
+    'media-icons/element',
+    'jassub',
   ],
-  CDN_BUNDLES = [
-    defineCDNBundle({ dev: true }),
-    defineCDNBundle({ dev: false }),
-    defineCDNBundle({ layout: 'all' }),
-    defineCDNBundle({ layout: 'default' }),
-    defineCDNBundle({ layout: 'plyr' }),
-  ],
-  PLUGIN_BUNDLES = definePluginsBundle(),
-  TYPES_BUNDLES = defineTypesBundle();
+  CDN_EXTERNAL_PACKAGES = ['media-captions', 'media-icons', 'media-icons/element'],
+  PLUGINS_EXTERNAL_PACKAGES = ['vite', 'rollup', /webpack/, /rspack/, 'esbuild', 'unplugin'];
 
 // Styles
 if (!MODE_TYPES) {
@@ -48,26 +44,34 @@ if (!MODE_TYPES) {
   }
 }
 
-export default defineConfig(
-  MODE_PLUGINS
-    ? PLUGIN_BUNDLES
-    : MODE_CDN
-      ? CDN_BUNDLES
-      : MODE_WATCH
-        ? [...NPM_BUNDLES, ...TYPES_BUNDLES]
-        : MODE_TYPES
-          ? TYPES_BUNDLES
-          : [...NPM_BUNDLES, ...CDN_BUNDLES, ...PLUGIN_BUNDLES],
-);
+export default defineConfig(getBundles());
+
+function getBundles() {
+  if (MODE_CSS) {
+    return [];
+  } else if (MODE_PLUGINS) {
+    return getPluginsBundles();
+  } else if (MODE_CDN) {
+    return getCDNBundles();
+  } else if (MODE_WATCH) {
+    return [...getNPMBundles(), ...getTypesBundles()];
+  } else if (MODE_TYPES) {
+    return getTypesBundles();
+  } else {
+    return [...getNPMBundles(), ...getLegacyCDNBundles(), ...getPluginsBundles()];
+  }
+}
 
 /**
  * @returns {import('rollup').RollupOptions[]}
  * */
-function defineTypesBundle() {
+function getTypesBundles() {
   /** @type {Record<string, string>} */
   const input = {
     index: 'types/index.d.ts',
     elements: 'types/elements/index.d.ts',
+    'global/player': 'types/global/player.d.ts',
+    'global/plyr': 'types/global/plyr.d.ts',
     icons: 'types/elements/bundles/icons.d.ts',
   };
 
@@ -127,6 +131,14 @@ function defineTypesBundle() {
  * }} BundleOptions
  */
 
+function getNPMBundles() {
+  return [
+    defineNPMBundle({ type: 'server' }),
+    defineNPMBundle({ type: 'dev' }),
+    defineNPMBundle({ type: 'prod' }),
+  ];
+}
+
 /**
  * @param {BundleOptions}
  * @returns {import('rollup').RollupOptions}
@@ -136,12 +148,14 @@ function defineNPMBundle({ target, type, minify }) {
   let input = {
       vidstack: 'src/index.ts',
       'vidstack-elements': 'src/elements/index.ts',
+      'global/vidstack-player': 'src/global/player.ts',
+      'global/plyr': 'src/global/plyr.ts',
       'define/vidstack-icons': 'src/elements/bundles/icons.ts',
       'define/vidstack-player': 'src/elements/bundles/player.ts',
       'define/vidstack-player-ui': 'src/elements/bundles/player-ui.ts',
       'define/vidstack-player-layouts': 'src/elements/bundles/player-layouts/index.ts',
       'define/vidstack-player-default-layout': 'src/elements/bundles/player-layouts/default.ts',
-      'define/vidstack-player-plyr-layout': 'src/elements/bundles/player-layouts/plyr.ts',
+      'define/plyr-layout': 'src/elements/bundles/player-layouts/plyr.ts',
     },
     isProd = type === 'prod',
     isServer = type === 'server',
@@ -157,8 +171,7 @@ function defineNPMBundle({ target, type, minify }) {
       'src/elements/define/layouts/default/audio-layout-element.ts';
     input['define/vidstack-video-layout'] =
       'src/elements/define/layouts/default/video-layout-element.ts';
-    input['define/vidstack-plyr-layout'] =
-      'src/elements/define/layouts/plyr/plyr-layout-element.ts';
+    input['define/plyr-layout'] = 'src/elements/define/layouts/plyr/plyr-layout-element.ts';
   }
 
   return {
@@ -211,6 +224,7 @@ function defineNPMBundle({ target, type, minify }) {
         define: {
           __DEV__: !isProd && !isServer ? 'true' : 'false',
           __SERVER__: isServer ? 'true' : 'false',
+          __CDN__: MODE_CDN ? 'true' : 'false',
           __TEST__: 'false',
         },
       }),
@@ -218,66 +232,139 @@ function defineNPMBundle({ target, type, minify }) {
   };
 }
 
+function getLegacyCDNBundles() {
+  return [
+    // Prod
+    defineCDNBundle({
+      input: 'src/elements/bundles/cdn-legacy/player.ts',
+      dir: 'cdn',
+      file: 'vidstack',
+      legacy: true,
+    }),
+    // All Layouts
+    defineCDNBundle({
+      input: 'src/elements/bundles/cdn-legacy/player-with-layouts.ts',
+      dir: 'cdn/with-layouts',
+      file: 'vidstack',
+      legacy: true,
+    }),
+  ];
+}
+
+function getCDNBundles() {
+  const baseDir = 'dist-cdn',
+    playerInput = 'src/elements/bundles/cdn/player.ts',
+    playerCoreInput = 'src/elements/bundles/cdn/player.core.ts',
+    plyrInput = 'src/elements/bundles/cdn/plyr.ts';
+
+  return [
+    // cdn.vidstack.io/player.dev
+    defineCDNBundle({
+      dev: true,
+      input: playerInput,
+      dir: baseDir,
+      file: 'player.dev',
+    }),
+    // cdn.vidstack.io/player
+    defineCDNBundle({
+      input: playerInput,
+      dir: baseDir,
+      file: 'player',
+    }),
+    // cdn.vidstack.io/player.core.dev
+    defineCDNBundle({
+      dev: true,
+      input: playerCoreInput,
+      dir: baseDir,
+      file: 'player.core.dev',
+    }),
+    // cdn.vidstack.io/player.core
+    defineCDNBundle({
+      input: playerCoreInput,
+      dir: baseDir,
+      file: 'player.core',
+    }),
+    // cdn.vidstack.io/plyr.dev
+    defineCDNBundle({
+      dev: true,
+      input: plyrInput,
+      dir: baseDir,
+      file: 'plyr.dev',
+    }),
+    // cdn.vidstack.io/plyr
+    defineCDNBundle({
+      input: plyrInput,
+      dir: baseDir,
+      file: 'plyr',
+    }),
+  ];
+}
+
 /**
- * @param {{ dev?: boolean; layout?: 'all' | 'default' | 'plyr' }} options
+ * @param {{ dev?: boolean; input: string; dir: string; file: string; legacy?: boolean }} options
  * @returns {import('rollup').RollupOptions}
  */
-function defineCDNBundle({ dev = false, layout } = {}) {
-  function getInput() {
-    if (!dev && !layout) {
-      return 'src/elements/bundles/cdn/player.ts';
-    } else if (dev || layout === 'all') {
-      return 'src/elements/bundles/cdn/player-with-layouts.ts';
-    } else if (layout === 'default') {
-      return 'src/elements/bundles/cdn/player-with-default.ts';
-    } else if (layout === 'plyr') {
-      return 'src/elements/bundles/cdn/player-with-plyr.ts';
-    }
-  }
-
-  function getOutputDir() {
-    if (dev || !layout) {
-      return 'cdn';
-    } else if (layout === 'all') {
-      return 'cdn/with-layouts';
-    } else if (layout === 'default') {
-      return 'cdn/with-layouts/default';
-    } else if (layout === 'plyr') {
-      return 'cdn/with-layouts/plyr';
-    }
-  }
-
-  const input = getInput(),
-    outputFile = dev ? `vidstack.dev` : `vidstack`;
+function defineCDNBundle({ dev = false, input, dir, file, legacy = false }) {
+  const npm = defineNPMBundle({
+    type: dev ? 'dev' : 'prod',
+    minify: !dev,
+    target: 'es2020',
+  });
 
   return {
-    ...defineNPMBundle({
-      type: dev ? 'dev' : 'prod',
-      minify: !dev,
-      target: 'es2020',
-    }),
-    input: {
-      [outputFile]: input,
-      ...getProviderInputs(),
-    },
+    ...npm,
+    input: dev ? input : { [file]: input, ...getProviderInputs() },
+    preserveEntrySignatures: dev ? 'allow-extension' : 'strict',
     output: {
       format: 'esm',
-      dir: getOutputDir(),
+      file: dev ? `${dir}/${file}.js` : undefined,
+      dir: !dev ? dir : undefined,
       chunkFileNames: `chunks/vidstack-[hash].js`,
-      entryFileNames: (chunk) => {
-        return chunk.name.startsWith('vidstack') ? `[name].js` : `[name]-[hash].js`;
+      entryFileNames(chunk) {
+        return chunk.name === file ? `[name].js` : `[name]-[hash].js`;
       },
       paths: {
-        'media-icons': 'https://cdn.jsdelivr.net/npm/media-icons@next/dist/lazy.js',
-        'media-captions': 'https://cdn.jsdelivr.net/npm/media-captions@next/dist/prod.js',
+        'media-icons': legacy
+          ? 'https://cdn.jsdelivr.net/npm/media-icons@next/dist/lazy.js'
+          : 'https://cdn.vidstack.io/icons',
+        'media-captions': legacy
+          ? 'https://cdn.jsdelivr.net/npm/media-captions@next/dist/prod.js'
+          : 'https://cdn.vidstack.io/captions',
+        'media-icons/element': 'https://cdn.vidstack.io/icons',
       },
       manualChunks(id) {
-        if (dev) return outputFile; // no chunks in dev
-        if (id.includes('maverick') || id.includes('@floating-ui')) return 'frameworks';
+        if (dev) return file;
+
+        if (id.includes('maverick') || id.includes('@floating-ui')) {
+          return 'frameworks';
+        }
+
         return null;
       },
     },
     external: CDN_EXTERNAL_PACKAGES,
+    plugins: [
+      .../** @type {*} */ (npm.plugins),
+      {
+        // This plugin rewrites chunk paths so our URL rewrites to jsDelivr work.
+        name: 'cdn-chunks',
+        async generateBundle(_, bundle) {
+          const __dirname = path.dirname(fileURLToPath(import.meta.url)),
+            version = JSON.parse(
+              await fs.readFile(path.join(__dirname, 'package.json'), 'utf-8'),
+            ).version;
+
+          for (const chunk of Object.values(bundle)) {
+            if (chunk.type === 'chunk' && chunk.isEntry && chunk.name === file) {
+              chunk.code = chunk.code.replace(
+                /\"\.\/(chunks|providers)\/(.*?)\"/g,
+                `"https://cdn.jsdelivr.net/npm/@vidstack/cdn@${version}/$1/$2"`,
+              );
+            }
+          }
+        },
+      },
+    ],
   };
 }
 
@@ -336,6 +423,7 @@ function getProviderInputs() {
     [`providers/vidstack-audio`]: 'src/providers/audio/provider.ts',
     [`providers/vidstack-video`]: 'src/providers/video/provider.ts',
     [`providers/vidstack-hls`]: 'src/providers/hls/provider.ts',
+    [`providers/vidstack-dash`]: 'src/providers/dash/provider.ts',
     [`providers/vidstack-youtube`]: 'src/providers/youtube/provider.ts',
     [`providers/vidstack-vimeo`]: 'src/providers/vimeo/provider.ts',
     [`providers/vidstack-google-cast`]: 'src/providers/google-cast/provider.ts',
@@ -343,7 +431,7 @@ function getProviderInputs() {
 }
 
 /** @returns {import('rollup').RollupOptions[]} */
-function definePluginsBundle() {
+function getPluginsBundles() {
   return [
     {
       input: 'src/plugins.ts',

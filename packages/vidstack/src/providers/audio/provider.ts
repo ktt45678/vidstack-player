@@ -1,5 +1,9 @@
+import { scoped } from 'maverick.js';
+
+import type { MediaContext } from '../../core';
 import { HTMLMediaProvider } from '../html/provider';
-import type { MediaProviderAdapter } from '../types';
+import { HTMLAirPlayAdapter } from '../html/remote-playback';
+import type { MediaProviderAdapter, MediaRemotePlaybackAdapter } from '../types';
 
 /**
  * The audio provider adapts the `<audio>` element to enable loading audio via the HTML Media
@@ -9,7 +13,7 @@ import type { MediaProviderAdapter } from '../types';
  * @see {@link https://developer.mozilla.org/en-US/docs/Web/HTML/Element/audio}
  * @example
  * ```html
- * <media-player src="https://media-files.vidstack.io/audio.mp3">
+ * <media-player src="https://files.vidstack.io/audio.mp3">
  *   <media-provider></media-provider>
  * </media-player>
  * ```
@@ -19,6 +23,15 @@ export class AudioProvider extends HTMLMediaProvider implements MediaProviderAda
 
   override get type() {
     return 'audio';
+  }
+
+  airPlay?: MediaRemotePlaybackAdapter;
+
+  constructor(audio: HTMLAudioElement, ctx: MediaContext) {
+    super(audio, ctx);
+    scoped(() => {
+      this.airPlay = new HTMLAirPlayAdapter(this.media, ctx);
+    }, this.scope);
   }
 
   override setup() {

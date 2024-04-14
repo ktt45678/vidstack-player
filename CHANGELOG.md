@@ -2,7 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.9.8-F1](https://github.com/vidstack/player/releases/tag/v1.9.8-F1) (2023-12-31)
+## [1.11.0-next](https://github.com/vidstack/player/releases/tag/v1.11.0-next) (2024-03-30)
+
+### ⏪ Revert
+
+#### Player
+
+- clear saved time on media end ([1b9c598](https://github.com/vidstack/player/commit/1b9c59827cad6141bfdce84800a2bdf6e621f499))
 
 ### ✨ Features
 
@@ -23,6 +29,13 @@ All notable changes to this project will be documented in this file.
 - add download button to default layout ([80488b6](https://github.com/vidstack/player/commit/80488b624aba6c38fa85f804496af34fc243bc5c))
 - new slider steps component ([5623c98](https://github.com/vidstack/player/commit/5623c985b9b654cdf5d9695dbe19830c9302f24a))
 - source qualities ([837daa0](https://github.com/vidstack/player/commit/837daa0be8230c68efdd39e2fc470c2487652746))
+- new js player constructors ([2876c73](https://github.com/vidstack/player/commit/2876c737bf564fa891d3221d667f87fec7b2b5e8))
+- new cdn urls and bundles ([e36958c](https://github.com/vidstack/player/commit/e36958c491e0f7d109bcc0ce6539a6a171d46600))
+- add new `artwork` player prop ([c0a4eaf](https://github.com/vidstack/player/commit/c0a4eafefb7d16499107a0f84341e13db1680252))
+- add airplay support for audio ([c60c2fc](https://github.com/vidstack/player/commit/c60c2fc4b7031f3dd70c746b08bc52785ef8c68a))
+- add new `onLoad` method to storage ([2ce029f](https://github.com/vidstack/player/commit/2ce029f5377c3a46a6c4bc5db374b0efab3e97d5))
+- dash provider (#1212) ([000c7a4](https://github.com/vidstack/player/commit/000c7a4dc6483ed3051d54f73e2e3b4bccd6e867))
+- add `setAudioGain` method on player ([a4a7778](https://github.com/vidstack/player/commit/a4a77781e37e25be387a1db9d7ed268c5017390c))
 
 ### 🐛 Bug Fixes
 
@@ -40,11 +53,35 @@ All notable changes to this project will be documented in this file.
 - add workerd to node exports (#1198) ([dedd706](https://github.com/vidstack/player/commit/dedd706e761afaf681866e1f70155187a359b9bc))
 - stop expensive updates when not visible ([be96bd2](https://github.com/vidstack/player/commit/be96bd29206b25b75a49dccba4e80e46fbdc2253))
 - narrow player src types ([82988ca](https://github.com/vidstack/player/commit/82988ca75d42efc143688a2154fa6009b8e237a9))
+- default `<track>` element not selected ([c82528b](https://github.com/vidstack/player/commit/c82528b02ed6e0d2fa958c841baef71d9dcd161d))
+- `checkVisibility` api not available on ios safari ([1ef5e06](https://github.com/vidstack/player/commit/1ef5e064b30fb495f4756c8b242cc5b7e44a7705))
+- improve google cast error handling and events ([6fc54a9](https://github.com/vidstack/player/commit/6fc54a9dd263f404aabd7959e5bde0c74bdea92f))
+- accept `youtu.be` short urls ([9261b06](https://github.com/vidstack/player/commit/9261b06755968d6f771fde765d076b97dc0262d1))
+- vimeo ended event not firing ([53025a3](https://github.com/vidstack/player/commit/53025a3ee0f88c56a4094a6024177784d0f4464f))
+- focus on controls hide should not scroll ([778132f](https://github.com/vidstack/player/commit/778132f4061845153e8bff8ab8b6346adcae5d4c))
+- extending `LocalMediaStorage` should work ([71298c3](https://github.com/vidstack/player/commit/71298c3e36d1726d0113514c6438c7b51ff465f1))
+- accept `none` value for fullscreen orientation attr/prop ([545b7d6](https://github.com/vidstack/player/commit/545b7d62e36a8c1f03babe8c634003c62022f15f))
+- clear saved time in storage on media end ([3c37e51](https://github.com/vidstack/player/commit/3c37e519540aec4ac6eaf97499593d17c6aaba20))
+- trigger started if resuming from stored session ([6cdeed7](https://github.com/vidstack/player/commit/6cdeed7dd769f2b911f142589b266e6e3dcba993))
+- allow seeking directly to end ([20cc205](https://github.com/vidstack/player/commit/20cc2055c9a053c1118f29092943aaa4c090f1fa))
+- hls tracks not initializing correctly ([edddf3b](https://github.com/vidstack/player/commit/edddf3b90262f33f814e712f27a335eb076b6fcc))
+- hide chapters menu button when disabled ([9e96b33](https://github.com/vidstack/player/commit/9e96b33e2d966abf9e013109947da2958cb4fe3b))
+- rework layout loading in player class constructors ([b37814c](https://github.com/vidstack/player/commit/b37814c279ac8d444a7eb6808a00e761c718bb1f))
+- cdn entries need absolute url import specifiers ([c2bafe7](https://github.com/vidstack/player/commit/c2bafe7505375bbdab136ce3ba1bca1a648a3830))
+- handle seeking to end precision changes ([abf9b17](https://github.com/vidstack/player/commit/abf9b17bd77506051cfa0a20eef061a55838e6a8))
+- replace small percent sign for slider values (#1215) ([833f2e4](https://github.com/vidstack/player/commit/833f2e4e9346333b3296331ae2a2419e1bf50a2c))
+- keep js constructed player alive ([5f5cae1](https://github.com/vidstack/player/commit/5f5cae115b4b619a6e940de55245425d5cff6ed4))
+- load poster element in js player create ([2c56c58](https://github.com/vidstack/player/commit/2c56c58c7d0d829d98309bcc35b508be49209692))
+- add `media-icons/element` to external deps ([ac7acf6](https://github.com/vidstack/player/commit/ac7acf6fe34e06e03e1329c1f6d545b8fe792372))
+- only remove js player controls if layout provided ([685ea68](https://github.com/vidstack/player/commit/685ea68a41af1c753bc6edeb877adc71a21674ab))
+- add dash src to media src type ([2cc150b](https://github.com/vidstack/player/commit/2cc150b7bdad48c901e47c43084dcc2098e095ad))
+- improve menu focus and scroll management ([a73a99a](https://github.com/vidstack/player/commit/a73a99a2c79cfa4bf9e398cc49d1ca658e338348))
 
 #### Player (React)
 
 - rename `DefaultKeyboardActionDisplay` to `DefaultKeyboardDisplay` ([9d573f9](https://github.com/vidstack/player/commit/9d573f984642629c7595911d2c621da404742b17))
 - slider callbacks not firing ([a4fe4e0](https://github.com/vidstack/player/commit/a4fe4e0b8dd748dd6bc04a5372bd4d816f212197))
+- `alt` optional on poster for slotting ([aa46aae](https://github.com/vidstack/player/commit/aa46aaeb215aed145a8fdc2ca6567831bd37cd38))
 
 ## [1.10.9-next](https://github.com/vidstack/player/releases/tag/v1.10.9-next) (2024-02-20)
 

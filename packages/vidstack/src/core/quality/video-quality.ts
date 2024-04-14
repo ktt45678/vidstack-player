@@ -6,7 +6,7 @@ import { ListSymbol } from '../../foundation/list/symbols';
 import { QualitySymbol } from './symbols';
 
 /**
- * @see {@link https://vidstack.io/docs/player/core-concepts/quality#quality-list}
+ * @see {@link https://vidstack.io/docs/player/core-concepts/video-quality#quality-list}
  */
 export class VideoQualityList extends SelectList<VideoQuality, VideoQualityListEvents> {
   private _auto = false;
@@ -35,15 +35,15 @@ export class VideoQualityList extends SelectList<VideoQuality, VideoQualityListE
     return this._auto || this.readonly;
   }
 
-  /* @internal */
+  /** @internal */
   [QualitySymbol._enableAuto]?: (trigger?: Event) => void;
 
-  /* @internal */
+  /** @internal */
   protected override [ListSymbol._onUserSelect]() {
     this[QualitySymbol._setAuto](false);
   }
 
-  /* @internal */
+  /** @internal */
   protected override [ListSymbol._onReset](trigger?: Event) {
     this[QualitySymbol._enableAuto] = undefined;
     this[QualitySymbol._setAuto](false, trigger);
@@ -59,19 +59,11 @@ export class VideoQualityList extends SelectList<VideoQuality, VideoQualityListE
     this[QualitySymbol._setAuto](true, trigger);
   }
 
-  indexOf(quality: VideoQuality) {
-    return this._items.indexOf(quality);
-  }
-
-  getById(id: string) {
-    return this._items.find((quality) => quality.id === id);
-  }
-
   getBySrc(src: unknown) {
     return this._items.find((quality) => quality.src === src);
   }
 
-  /* @internal */
+  /** @internal */
   [QualitySymbol._setAuto](auto: boolean, trigger?: Event) {
     if (this._auto === auto) return;
     this._auto = auto;
