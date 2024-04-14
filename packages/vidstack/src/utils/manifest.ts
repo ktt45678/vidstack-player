@@ -1,9 +1,13 @@
-import type { MediaStreamType } from '../core';
+import type { MediaStreamType, ParsedDASHManifest } from '../core';
 
 export function resolveStreamTypeFromDASHManifest(
-  manifestSrc: string,
+  manifestSrc: string | ParsedDASHManifest,
   requestInit?: RequestInit,
 ): Promise<MediaStreamType> {
+  if (typeof manifestSrc !== 'string') {
+    const manifestType = manifestSrc['type'];
+    return Promise.resolve(manifestType === 'static' ? 'on-demand' : 'live');
+  }
   return fetch(manifestSrc, requestInit)
     .then((res) => res.text())
     .then((manifest) => {

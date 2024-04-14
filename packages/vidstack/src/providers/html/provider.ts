@@ -115,6 +115,7 @@ export class HTMLMediaProvider implements MediaProviderAdapter {
    * Append source so it works when requesting AirPlay since hls.js will remove it.
    */
   protected _appendSource(src: Src<string>, defaultType?: string) {
+    if (typeof src.src !== 'string') return;
     const prevSource = this._media.querySelector('source[data-vds]'),
       source = prevSource ?? document.createElement('source');
 

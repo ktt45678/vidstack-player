@@ -9,7 +9,13 @@ import {
 } from 'maverick.js';
 import { DOMEvent, isArray, isString, noop } from 'maverick.js/std';
 
-import { isVideoQualitySrc, type MediaContext, type MediaPlayerProps, type Src } from '../../core';
+import {
+  isVideoQualitySrc,
+  type MediaContext,
+  type MediaPlayerProps,
+  type ParsedDASHManifest,
+  type Src,
+} from '../../core';
 import {
   AudioProviderLoader,
   HLSProviderLoader,
@@ -260,7 +266,7 @@ export class SourceSelection {
             .catch(noop);
         }
       } else if (isDASHSrc(source)) {
-        resolveStreamTypeFromDASHManifest(source.src as string, {
+        resolveStreamTypeFromDASHManifest(source.src as string | ParsedDASHManifest, {
           credentials: getRequestCredentials(crossOrigin),
           signal: abort.signal,
         })
