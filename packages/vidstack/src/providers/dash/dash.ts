@@ -9,6 +9,7 @@ import { TextTrackSymbol } from '../../core/tracks/text/symbols';
 import { TextTrack } from '../../core/tracks/text/text-track';
 import { ListSymbol } from '../../foundation/list/symbols';
 import { RAFLoop } from '../../foundation/observers/raf-loop';
+import { isParsedManifest } from '../../utils/mime';
 import { canPlayAudioType, canPlayVideoType, IS_CHROME } from '../../utils/support';
 import type { DASHConstructor, DASHInstanceCallback } from './types';
 
@@ -256,7 +257,7 @@ export class DASHController {
     audioTracks.forEach((audioTrack: DASH.MediaInfo & { label?: string | null }, index) => {
       const localTrack = {
         id: `dash-audio-${audioTrack?.index}`,
-        label: audioTrack.label ?? audioTrack.lang ?? '',
+        label: audioTrack.bitrateList[0]?.id ?? audioTrack.label ?? audioTrack.lang ?? '',
         language: audioTrack.lang ?? '',
         kind: 'main',
         mimeType: audioTrack.mimeType,
@@ -386,7 +387,7 @@ export class DASHController {
 
   loadSource(src: Src) {
     this._reset();
-    if (!isString(src.src)) return;
+    if (!isString(src.src) && !isParsedManifest(src.src)) return;
     this._instance?.attachSource(src.src);
   }
 

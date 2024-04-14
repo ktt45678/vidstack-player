@@ -1,5 +1,6 @@
 import { isNumber, isString } from 'maverick.js/std';
 import type { SetRequired } from 'type-fest';
+
 import type { ParsedDASHManifest } from './types';
 
 export type MediaSrc = string | AudioSrc | VideoSrc | HLSSrc | DASHSrc | YouTubeSrc | VimeoSrc;

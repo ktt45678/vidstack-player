@@ -82,7 +82,11 @@ export function isHLSSrc({ src, type }: Src): boolean {
 }
 
 export function isDASHSrc({ src, type }: Src): boolean {
-  return (isParsedManifest(src) || (isString(src) && DASH_VIDEO_EXTENSIONS.test(src)) || DASH_VIDEO_TYPES.has(type));
+  return (
+    isParsedManifest(src) ||
+    (isString(src) && DASH_VIDEO_EXTENSIONS.test(src)) ||
+    DASH_VIDEO_TYPES.has(type)
+  );
 }
 
 export function canGoogleCastSrc(src: Src): boolean {
