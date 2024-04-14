@@ -5,7 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { nodeResolve } from '@rollup/plugin-node-resolve';
 import chokidar from 'chokidar';
 import * as eslexer from 'es-module-lexer';
-import { build } from 'esbuild';
+import { build, transform as esbuildTransform } from 'esbuild';
+import fsExtra from 'fs-extra';
 import { globbySync } from 'globby';
 import { defineConfig } from 'rollup';
 import dts from 'rollup-plugin-dts';
@@ -29,18 +30,17 @@ const NPM_EXTERNAL_PACKAGES = [
     'jassub',
   ],
   CDN_EXTERNAL_PACKAGES = ['media-captions', 'media-icons', 'media-icons/element'],
-  PLUGINS_EXTERNAL_PACKAGES = ['vite', 'rollup', /webpack/, /rspack/, 'esbuild', 'unplugin'];
+  PLUGINS_EXTERNAL_PACKAGES = ['vite', 'rollup', /webpack/, /rspack/, 'esbuild', 'unplugin'],
+  TYPES_EXTERNAL_PACKAGES = NPM_EXTERNAL_PACKAGES;
 
 // Styles
 if (!MODE_TYPES) {
   if (MODE_WATCH) {
-    chokidar.watch('player/styles/**').on('all', async (_, path) => {
-      if (path !== 'player/styles/default/theme.css') {
+    chokidar.watch('styles/player/**').on('all', async (_, path) => {
+      if (path !== 'styles/player/default/theme.css') {
         await buildDefaultTheme();
       }
     });
-  } else {
-    await buildDefaultTheme();
   }
 }
 
@@ -62,6 +62,12 @@ function getBundles() {
   }
 }
 
+function isLibraryId(id) {
+  return ['maverick', 'lit-html', '@floating-ui', 'fscreen', 'compute-scroll-into-view'].some(
+    (frameworkId) => id.includes(frameworkId),
+  );
+}
+
 /**
  * @returns {import('rollup').RollupOptions[]}
  * */
@@ -79,15 +85,15 @@ function getTypesBundles() {
     {
       input,
       output: {
-        dir: '.',
-        chunkFileNames: 'dist/types/vidstack-[hash].d.ts',
+        dir: 'dist-npm',
+        chunkFileNames: 'types/vidstack-[hash].d.ts',
         manualChunks(id) {
-          if (id.includes('maverick') || id.includes('lit-html') || id.includes('@floating-ui')) {
+          if (isLibraryId(id)) {
             return 'framework.d';
           }
         },
       },
-      external: NPM_EXTERNAL_PACKAGES,
+      external: TYPES_EXTERNAL_PACKAGES,
       plugins: [
         dts({
           respectExternal: true,
@@ -116,7 +122,7 @@ function getTypesBundles() {
     },
     {
       input: 'types/plugins.d.ts',
-      output: { file: 'plugins.d.ts' },
+      output: { file: 'dist-npm/plugins.d.ts' },
       external: PLUGINS_EXTERNAL_PACKAGES,
       plugins: [dts({ respectExternal: true })],
     },
@@ -167,11 +173,11 @@ function defineNPMBundle({ target, type, minify }) {
       ...getProviderInputs(),
     };
 
-    input['define/vidstack-audio-layout'] =
+    input['define/vidstack-audio-layout-el'] =
       'src/elements/define/layouts/default/audio-layout-element.ts';
-    input['define/vidstack-video-layout'] =
+    input['define/vidstack-video-layout-el'] =
       'src/elements/define/layouts/default/video-layout-element.ts';
-    input['define/plyr-layout'] = 'src/elements/define/layouts/plyr/plyr-layout-element.ts';
+    input['define/plyr-layout-el'] = 'src/elements/define/layouts/plyr/plyr-layout-element.ts';
   }
 
   return {
@@ -181,11 +187,11 @@ function defineNPMBundle({ target, type, minify }) {
     external: NPM_EXTERNAL_PACKAGES,
     output: {
       format: 'esm',
-      dir: `dist/${type.replace('local-', '')}`,
+      dir: `dist-npm/${type.replace('local-', '')}`,
       chunkFileNames: 'chunks/vidstack-[hash].js',
       manualChunks(id) {
-        if (id.includes('maverick') || id.includes('@floating-ui')) return 'framework';
         if (id.includes('lit-html')) return 'framework-layouts';
+        if (isLibraryId(id)) return 'framework';
         return null;
       },
     },
@@ -197,6 +203,14 @@ function defineNPMBundle({ target, type, minify }) {
             ? ['production', 'default']
             : ['development', 'production', 'default'],
       }),
+      !isProd && {
+        name: 'npm-artifacts',
+        async buildEnd() {
+          await buildDefaultTheme();
+          await fsExtra.copy('npm', 'dist-npm');
+          await fsExtra.copy('styles/player', 'dist-npm/player/styles');
+        },
+      },
       isServer && {
         name: 'server-bundle',
         async transform(code, id) {
@@ -218,9 +232,6 @@ function defineNPMBundle({ target, type, minify }) {
         platform: isServer ? 'node' : 'browser',
         minify: minify,
         legalComments: 'none',
-        mangleProps: shouldMangle ? /^_/ : undefined,
-        mangleCache: shouldMangle ? MANGLE_CACHE : undefined,
-        reserveProps: shouldMangle ? /^__/ : undefined,
         define: {
           __DEV__: !isProd && !isServer ? 'true' : 'false',
           __SERVER__: isServer ? 'true' : 'false',
@@ -228,6 +239,21 @@ function defineNPMBundle({ target, type, minify }) {
           __TEST__: 'false',
         },
       }),
+      shouldMangle && {
+        name: 'mangle',
+        async transform(code, id) {
+          if (id.includes('node_modules')) return null;
+          return (
+            await esbuildTransform(code, {
+              target: 'esnext',
+              platform: 'neutral',
+              mangleProps: /^_/,
+              mangleCache: MANGLE_CACHE,
+              reserveProps: /^__/,
+            })
+          ).code;
+        },
+      },
     ],
   };
 }
@@ -237,14 +263,14 @@ function getLegacyCDNBundles() {
     // Prod
     defineCDNBundle({
       input: 'src/elements/bundles/cdn-legacy/player.ts',
-      dir: 'cdn',
+      dir: 'dist-npm/cdn',
       file: 'vidstack',
       legacy: true,
     }),
     // All Layouts
     defineCDNBundle({
       input: 'src/elements/bundles/cdn-legacy/player-with-layouts.ts',
-      dir: 'cdn/with-layouts',
+      dir: 'dist-npm/cdn/with-layouts',
       file: 'vidstack',
       legacy: true,
     }),
@@ -335,7 +361,7 @@ function defineCDNBundle({ dev = false, input, dir, file, legacy = false }) {
       manualChunks(id) {
         if (dev) return file;
 
-        if (id.includes('maverick') || id.includes('@floating-ui')) {
+        if (isLibraryId(id)) {
           return 'frameworks';
         }
 
@@ -370,15 +396,17 @@ function defineCDNBundle({ dev = false, input, dir, file, legacy = false }) {
 
 async function buildDefaultTheme() {
   // CSS merge.
-  let defaultStyles = await fs.readFile('player/styles/base.css', 'utf-8');
+  let defaultStyles = await fs.readFile('styles/player/base.css', 'utf-8');
 
-  const themeDir = 'player/styles/default';
-  for (const file of await fs.readdir(themeDir, 'utf-8')) {
+  const themeDir = 'styles/player/default',
+    themeDirFiles = await fs.readdir(themeDir, 'utf-8');
+
+  for (const file of themeDirFiles) {
     if (file === 'theme.css' || file === 'layouts') continue;
     defaultStyles += '\n' + (await fs.readFile(`${themeDir}/${file}`, 'utf-8'));
   }
 
-  await fs.writeFile('player/styles/default/theme.css', defaultStyles);
+  await fs.writeFile('styles/player/default/theme.css', defaultStyles);
 }
 
 export async function buildMangleCache() {
@@ -435,7 +463,7 @@ function getPluginsBundles() {
   return [
     {
       input: 'src/plugins.ts',
-      output: { file: 'plugins.js', format: 'esm' },
+      output: { file: 'dist-npm/plugins.js', format: 'esm' },
       external: PLUGINS_EXTERNAL_PACKAGES,
       treeshake: true,
       plugins: [

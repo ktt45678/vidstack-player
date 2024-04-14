@@ -1,6 +1,8 @@
 import {
   autoUpdate,
   computePosition,
+  flip,
+  shift,
   type ComputePositionConfig,
   type Placement,
 } from '@floating-ui/dom';
@@ -22,6 +24,7 @@ import {
   listenEvent,
   setAttribute,
   setStyle,
+  toggleClass,
 } from 'maverick.js/std';
 
 import { round } from './number';
@@ -228,11 +231,33 @@ export function autoPlacement(
   setStyle(el, 'visibility', !trigger ? 'hidden' : null);
   if (!trigger) return;
 
+  let isTop = placement.includes('top');
+
   const negateX = (x: string) => (placement.includes('left') ? `calc(-1 * ${x})` : x),
-    negateY = (y: string) => (placement.includes('top') ? `calc(-1 * ${y})` : y);
+    negateY = (y: string) => (isTop ? `calc(-1 * ${y})` : y);
 
   return autoUpdate(trigger, el, () => {
-    computePosition(trigger, el, { placement: floatingPlacement, ...options }).then(({ x, y }) => {
+    computePosition(trigger, el, {
+      placement: floatingPlacement,
+      middleware: [
+        ...(options.middleware ?? []),
+        flip({ fallbackAxisSideDirection: 'start', crossAxis: false }),
+        shift(),
+      ],
+      ...options,
+    }).then(({ x, y, middlewareData }) => {
+      const hasFlipped = !!middlewareData.flip?.index;
+      isTop = placement.includes(hasFlipped ? 'bottom' : 'top');
+
+      el.setAttribute(
+        'data-placement',
+        hasFlipped
+          ? placement.startsWith('top')
+            ? placement.replace('top', 'bottom')
+            : placement.replace('bottom', 'top')
+          : placement,
+      );
+
       Object.assign(el.style, {
         top: `calc(${y + 'px'} + ${negateY(
           yOffset ? yOffset + 'px' : `var(--${offsetVarName}-y-offset, 0px)`,
@@ -387,11 +412,41 @@ export function isHTMLElement(el: any): el is HTMLElement {
   return el instanceof HTMLElement;
 }
 
-export function showToast(message: string, ms = 5000) {
-  const toast = document.createElement('div');
-  toast.classList.add('vds-toast');
-  toast.textContent = message;
-  toast.ariaLive = 'polite';
-  document.body.append(toast);
-  setTimeout(() => toast.remove(), ms);
+export function useColorSchemePreference() {
+  const colorScheme = signal<'light' | 'dark'>('dark');
+
+  if (__SERVER__) return colorScheme;
+
+  const media = window.matchMedia('(prefers-color-scheme: light)');
+
+  function onChange() {
+    colorScheme.set(media.matches ? 'light' : 'dark');
+  }
+
+  onChange();
+  listenEvent(media, 'change', onChange);
+
+  return colorScheme;
+}
+
+export function watchColorScheme(
+  el: HTMLElement,
+  colorScheme: ReadSignal<'light' | 'dark' | 'system' | 'default'>,
+) {
+  effect(() => {
+    const scheme = colorScheme();
+
+    if (scheme === 'system') {
+      const preference = useColorSchemePreference();
+      effect(() => updateColorScheme(preference()));
+      return;
+    }
+
+    updateColorScheme(scheme);
+  });
+
+  function updateColorScheme(scheme: string) {
+    toggleClass(el, 'light', scheme === 'light');
+    toggleClass(el, 'dark', scheme === 'dark');
+  }
 }

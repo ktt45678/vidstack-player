@@ -127,7 +127,7 @@ export class TextTrack extends EventsTarget<TextTrackEvents> {
     }
 
     if (__DEV__ && isTrackCaptionKind(this) && !this.label) {
-      throw Error(`[vidstack] captions text track created without label: \`${this.src}\``);
+      console.warn(`[vidstack] captions text track created without label: \`${this.src}\``);
     }
   }
 
