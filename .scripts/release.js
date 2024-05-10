@@ -266,7 +266,7 @@ async function publishCDN(version) {
   fsExtra.copySync(path.resolve(pkgRoot, 'styles'), path.resolve(cdnDir, 'styles'));
 
   const packageJson = {
-    name: '@vidstack/cdn',
+    name: '@ktt45678/vidstack-cdn',
     version,
     license: 'MIT',
     type: 'module',
@@ -282,7 +282,7 @@ async function publishCDN(version) {
     { cwd: cdnDir, stdio: 'pipe' },
   );
 
-  console.log(kleur.green(`\n✅ Successfully published @vidstack/cdn@${version}`));
+  console.log(kleur.green(`\n✅ Successfully published @ktt45678/vidstack-cdn@${version}`));
 }
 
 function getReleaseTag(version) {
