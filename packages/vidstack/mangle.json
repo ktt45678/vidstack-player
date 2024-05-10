@@ -780,8 +780,7 @@
   "_watchVolume": "Fc",
   "_watchWhen": "qn",
   "_when": "cn",
-  "_instanceDisposeFn": "Cn",
-  "_libAssCtor": "Bn",
-  "_processCDNSrc": "En",
-  "_setCurrentTrack": "Dn"
+  "_calcJumpValue": "Cn",
+  "_calcNewKeyValue": "Dn",
+  "_repeatedKeys": "Bn"
 }

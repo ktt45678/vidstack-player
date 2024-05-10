@@ -48,17 +48,27 @@ export function isEventInside(el: HTMLElement, event: Event) {
   return isDOMNode(event.target) && el.contains(event.target);
 }
 
-const intervalJobs = new Set<() => void>();
+const rafJobs = new Set<() => void>();
 
 if (!__SERVER__) {
-  window.setInterval(() => {
-    for (const job of intervalJobs) job();
-  }, 1000);
+  function processJobs() {
+    for (const job of rafJobs) {
+      try {
+        job();
+      } catch (e) {
+        if (__DEV__) console.error(`[vidstack] failed job:\n\n${e}`);
+      }
+    }
+
+    window.requestAnimationFrame(processJobs);
+  }
+
+  processJobs();
 }
 
-export function scheduleIntervalJob(job: () => void) {
-  intervalJobs.add(job);
-  return () => intervalJobs.delete(job);
+export function scheduleRafJob(job: () => void) {
+  rafJobs.add(job);
+  return () => rafJobs.delete(job);
 }
 
 export function setAttributeIfEmpty(target: Element, name: string, value: string) {
@@ -106,7 +116,7 @@ export function checkVisibility(el: HTMLElement | null) {
 }
 
 export function observeVisibility(el: HTMLElement, callback: (isVisible: boolean) => void) {
-  return scheduleIntervalJob(() => callback(checkVisibility(el)));
+  return scheduleRafJob(() => callback(checkVisibility(el)));
 }
 
 export function isElementParent(
@@ -132,7 +142,7 @@ export function onPress(
   handler: (event: PointerEvent | KeyboardEvent) => void,
 ) {
   listenEvent(target, 'pointerup', (event) => {
-    if (event.button === 0) handler(event);
+    if (event.button === 0 && !event.defaultPrevented) handler(event);
   });
   listenEvent(target, 'keydown', (event) => {
     if (isKeyboardClick(event)) handler(event);

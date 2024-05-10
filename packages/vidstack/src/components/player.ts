@@ -194,7 +194,10 @@ export class MediaPlayer
       context,
     );
 
-    new NavigatorMediaSession();
+    if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
+      new NavigatorMediaSession();
+    }
+
     new MediaLoadController('load', this.startLoading.bind(this));
     new MediaLoadController('posterLoad', this.startLoadingPoster.bind(this));
   }
@@ -749,6 +752,7 @@ export class MediaPlayer
   }
 
   override destroy() {
+    super.destroy();
     this._media.remote.setPlayer(null);
     this.dispatch('destroy');
   }

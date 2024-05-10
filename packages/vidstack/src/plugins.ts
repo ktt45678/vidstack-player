@@ -336,7 +336,7 @@ function generateElementImports(
 
     if (className) {
       elementClasses.add(className);
-    } else {
+    } else if (className !== 'media-icon') {
       console.warn(`[vidstack]: unknown media element was found \`${tagName}\``);
     }
   }
@@ -352,7 +352,7 @@ function generateElementImports(
 }
 
 function diff(a: Set<any> | undefined, b: Set<any> | undefined, key: string) {
-  return a?.has(key) !== b?.has(key);
+  return !!a && !!b && a.has(key) && b.has(key);
 }
 
 function isSetsEqual(a: Set<any> | undefined, b: Set<any> | undefined): boolean {
