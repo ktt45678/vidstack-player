@@ -43,6 +43,11 @@ export class TextRenderers {
     this._update();
   }
 
+  resetCustomRenderer() {
+    if (!this._customRenderer) return;
+    this._customRenderer.changeTrack(null);
+  }
+
   /** @internal */
   _attachVideo(video: HTMLVideoElement | null) {
     requestAnimationFrame(() => {

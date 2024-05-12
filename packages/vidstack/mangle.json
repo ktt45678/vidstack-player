@@ -782,5 +782,10 @@
   "_when": "cn",
   "_calcJumpValue": "Cn",
   "_calcNewKeyValue": "Dn",
-  "_repeatedKeys": "Bn"
+  "_repeatedKeys": "Bn",
+  "_instanceDisposeFn": "Fn",
+  "_libAssCtor": "En",
+  "_processCDNSrc": "Hn",
+  "_setCurrentTrack": "Gn",
+  "_removeTrackFromCustomRenderer": "In"
 }

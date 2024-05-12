@@ -471,13 +471,15 @@ export class MediaStateManager extends MediaPlayerController {
   }
 
   private _resetMediaState(event: Event, isSourceQualityChange = false) {
-    const { audioTracks, qualities } = this._media;
+    const { audioTracks, qualities, textRenderers } = this._media;
 
     if (!isSourceQualityChange) {
       audioTracks[ListSymbol._reset](event);
       qualities[ListSymbol._reset](event);
       softResetMediaState(this.$state, isSourceQualityChange);
       this._resetTracking();
+      // Reset custom text renderer
+      textRenderers.resetCustomRenderer();
       return;
     }
 
