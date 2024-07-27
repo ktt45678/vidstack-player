@@ -206,8 +206,8 @@ export class Thumbnail extends Component<ThumbnailProps, ThumbnailState> {
       ),
       scale = !isNaN(maxRatio) && maxRatio < 1 ? maxRatio : minRatio > 1 ? minRatio : 1;
 
-    this._style(rootEl, '--thumbnail-width', `${width * scale}px`);
-    this._style(rootEl, '--thumbnail-height', `${height * scale}px`);
+    this._style(rootEl, '--thumbnail-width', `${width * scale}px`, false);
+    this._style(rootEl, '--thumbnail-height', `${height * scale}px`, false);
     this._style(imgEl, 'width', `${imgEl.naturalWidth * scale}px`);
     this._style(imgEl, 'height', `${imgEl.naturalHeight * scale}px`);
     this._style(
@@ -220,9 +220,9 @@ export class Thumbnail extends Component<ThumbnailProps, ThumbnailState> {
     this._style(imgEl, 'max-width', 'none');
   }
 
-  private _style(el: HTMLElement, name: string, value: string) {
+  private _style(el: HTMLElement, name: string, value: string, reset: boolean = true) {
     el.style.setProperty(name, value);
-    this._styleResets.push(() => el.style.removeProperty(name));
+    if (reset) this._styleResets.push(() => el.style.removeProperty(name));
   }
 
   private _resetStyles() {
