@@ -798,5 +798,9 @@
   "_pageVisibility": "Qn",
   "_fullscreenActive": "Tn",
   "_getPromise": "Sn",
-  "_promises": "Rn"
+  "_promises": "Rn",
+  "_instanceDisposeFn": "Vn",
+  "_libAssCtor": "Un",
+  "_processCDNSrc": "Xn",
+  "_setCurrentTrack": "Wn"
 }
