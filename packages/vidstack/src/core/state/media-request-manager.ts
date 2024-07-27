@@ -8,7 +8,7 @@ import {
 import { ScreenOrientationController } from '../../foundation/orientation/controller';
 import { Queue } from '../../foundation/queue/queue';
 import { RequestQueue } from '../../foundation/queue/request-queue';
-import type { GoogleCastPromptError } from '../../providers';
+import type { GoogleCastPromptError } from '../../providers/google-cast/events';
 import type { GoogleCastLoader } from '../../providers/google-cast/loader';
 import type { MediaProviderAdapter } from '../../providers/types';
 import { coerceToError } from '../../utils/error';
@@ -145,6 +145,8 @@ export class MediaRequestManager extends MediaPlayerController implements MediaR
 
     if (trigger) this._request._queue._enqueue('media-play-request', trigger);
 
+    const isAutoPlaying = peek(autoPlaying);
+
     try {
       const provider = peek(this._$provider);
       throwIfNotReadyForPlayback(provider, peek(canPlay));
@@ -157,7 +159,7 @@ export class MediaRequestManager extends MediaPlayerController implements MediaR
         trigger,
       });
 
-      errorEvent.autoPlay = autoPlaying();
+      errorEvent.autoPlay = isAutoPlaying;
 
       this._stateMgr._handle(errorEvent);
       throw error;
@@ -464,6 +466,31 @@ export class MediaRequestManager extends MediaPlayerController implements MediaR
       }
 
       throw error;
+    }
+  }
+
+  ['media-clip-start-change-request'](event: RE.MediaClipStartChangeRequestEvent) {
+    const { clipStartTime } = this.$state;
+    clipStartTime.set(event.detail);
+  }
+
+  ['media-clip-end-change-request'](event: RE.MediaClipEndChangeRequestEvent) {
+    const { clipEndTime } = this.$state;
+    clipEndTime.set(event.detail);
+    this.dispatch('duration-change', {
+      detail: event.detail,
+      trigger: event,
+    });
+  }
+
+  ['media-duration-change-request'](event: RE.MediaDurationChangeRequestEvent) {
+    const { providedDuration, clipEndTime } = this.$state;
+    providedDuration.set(event.detail);
+    if (clipEndTime() <= 0) {
+      this.dispatch('duration-change', {
+        detail: event.detail,
+        trigger: event,
+      });
     }
   }
 

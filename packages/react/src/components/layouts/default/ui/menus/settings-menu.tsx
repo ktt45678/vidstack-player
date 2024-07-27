@@ -1,8 +1,10 @@
 import * as React from 'react';
 
 import { flushSync } from 'react-dom';
+import { updateFontCssVars } from 'vidstack/exports/font';
 
 import { useMediaState } from '../../../../../hooks/use-media-state';
+import { useScoped } from '../../../../../hooks/use-signals';
 import * as Menu from '../../../../ui/menu';
 import type * as Tooltip from '../../../../ui/tooltip';
 import { useDefaultLayoutContext, useDefaultLayoutWord } from '../../context';
@@ -13,6 +15,7 @@ import { DefaultAccessibilityMenu } from './accessibility-menu';
 import { DefaultAudioMenu } from './audio-menu';
 import { DefaultCaptionMenu } from './captions-menu';
 import { DefaultPlaybackMenu } from './playback-menu';
+import { useParentDialogEl } from './utils';
 
 export interface DefaultMediaMenuProps {
   tooltip: Tooltip.ContentProps['placement'];
@@ -31,6 +34,7 @@ function DefaultSettingsMenu({
       showMenuDelay,
       icons: Icons,
       isSmallLayout,
+      menuContainer,
       menuGroup,
       noModal,
       colorScheme,
@@ -39,7 +43,10 @@ function DefaultSettingsMenu({
     $viewType = useMediaState('viewType'),
     $offset = !isSmallLayout && menuGroup === 'bottom' && $viewType === 'video' ? 26 : 0,
     colorSchemeClass = useColorSchemeClass(colorScheme),
-    [isOpen, setIsOpen] = React.useState(false);
+    [isOpen, setIsOpen] = React.useState(false),
+    dialogEl = useParentDialogEl();
+
+  useScoped(updateFontCssVars);
 
   function onOpen() {
     flushSync(() => {
@@ -89,6 +96,7 @@ function DefaultSettingsMenu({
       ) : (
         <Menu.Portal
           className={portalClass + (colorSchemeClass ? ` ${colorSchemeClass}` : '')}
+          container={menuContainer ?? dialogEl}
           disabled="fullscreen"
           data-sm={isSmallLayout ? '' : null}
           data-lg={!isSmallLayout ? '' : null}

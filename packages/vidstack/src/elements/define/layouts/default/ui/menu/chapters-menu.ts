@@ -5,8 +5,9 @@ import { isFunction, unwrap } from 'maverick.js/std';
 import { useDefaultLayoutContext } from '../../../../../../components/layouts/default/context';
 import type { MenuPlacement } from '../../../../../../components/ui/menu/menu-items';
 import type { TooltipPlacement } from '../../../../../../components/ui/tooltip/tooltip-content';
-import { TextTrack, watchActiveTextTrack } from '../../../../../../core';
 import { useMediaContext, useMediaState } from '../../../../../../core/api/media-context';
+import type { TextTrack } from '../../../../../../core/tracks/text/text-track';
+import { watchActiveTextTrack } from '../../../../../../core/tracks/text/utils';
 import { $signal } from '../../../../../lit/directives/signal';
 import { IconSlot } from '../../slots';
 import { $i18n } from '../utils';
@@ -26,7 +27,7 @@ export function DefaultChaptersMenu({
     {
       translations,
       thumbnails,
-      menuContainer,
+      menuPortal,
       noModal,
       menuGroup,
       smallWhen: smWhen,
@@ -110,7 +111,7 @@ export function DefaultChaptersMenu({
           ${$i18n(translations, 'Chapters')}
         </media-tooltip-content>
       </media-tooltip>
-      ${portal ? MenuPortal(menuContainer, items) : items}
+      ${portal ? MenuPortal(menuPortal, items) : items}
     </media-menu>
   `;
 }

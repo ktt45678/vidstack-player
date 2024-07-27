@@ -4,6 +4,7 @@ import { DOMEvent, isNil, listenEvent, useDisposalBin } from 'maverick.js/std';
 import type { MediaContext } from '../../core/api/media-context';
 import type { MediaCanPlayDetail } from '../../core/api/media-events';
 import type { MediaErrorCode } from '../../core/api/types';
+import { PageVisibility } from '../../foundation/observers/page-visibility';
 import { RAFLoop } from '../../foundation/observers/raf-loop';
 import { isHLSSrc } from '../../utils/mime';
 import { getNumberOfDecimalPlaces } from '../../utils/number';
@@ -16,6 +17,7 @@ export class HTMLMediaEvents {
   private _attachedLoadStart = false;
   private _attachedCanPlay = false;
   private _timeRAF = new RAFLoop(this._onAnimationFrame.bind(this));
+  private _pageVisibility = new PageVisibility();
 
   private get _media() {
     return this._provider.media;
@@ -30,7 +32,10 @@ export class HTMLMediaEvents {
     private _ctx: MediaContext,
   ) {
     this._attachInitialListeners();
+
+    this._pageVisibility.connect();
     effect(this._attachTimeUpdate.bind(this));
+
     onDispose(this._onDispose.bind(this));
   }
 
@@ -46,9 +51,18 @@ export class HTMLMediaEvents {
    * bar (or whatever else is synced to the currentTime) moves in a choppy fashion. This helps
    * resolve that by retrieving time updates in a request animation frame loop.
    */
+  private _lastSeenTime = 0;
+  private _seekedTo = -1;
   private _onAnimationFrame() {
     const newTime = this._media.currentTime;
-    if (this._ctx.$state.realCurrentTime() !== newTime) this._updateCurrentTime(newTime);
+
+    // Avoid stuttering on Safari (after a seek operation time may drift backwards for a few frames).
+    const didStutter = IS_SAFARI && newTime - this._seekedTo < 0.35;
+
+    if (!didStutter && this._lastSeenTime !== newTime) {
+      this._updateCurrentTime(newTime);
+      this._lastSeenTime = newTime;
+    }
   }
 
   private _attachInitialListeners() {
@@ -135,13 +149,9 @@ export class HTMLMediaEvents {
   }
 
   private _updateCurrentTime(time: number, trigger?: Event) {
-    const detail = {
-      // Avoid errors where `currentTime` can have higher precision.
-      currentTime: Math.min(time, this._ctx.$state.seekableEnd()),
-      played: this._media.played,
-    };
-
-    this._notify('time-update', detail, trigger);
+    // Avoid errors where `currentTime` can have higher precision.
+    const newTime = Math.min(time, this._ctx.$state.seekableEnd());
+    this._notify('time-change', newTime, trigger);
   }
 
   private _onLoadStart(event: Event) {
@@ -167,6 +177,10 @@ export class HTMLMediaEvents {
   }
 
   private _onLoadedMetadata(event: Event) {
+    // Reset.
+    this._lastSeenTime = 0;
+    this._seekedTo = -1;
+
     this._attachCanPlayListeners();
 
     this._notify('loaded-metadata', undefined, event);
@@ -209,6 +223,8 @@ export class HTMLMediaEvents {
   }
 
   private _onPlaying(event: Event) {
+    // This event can incorrectly fire on Safari.
+    if (this._media.paused) return;
     this._waiting = false;
     this._notify('playing', undefined, event);
     this._timeRAF._start();
@@ -242,7 +258,11 @@ export class HTMLMediaEvents {
   }
 
   protected _attachTimeUpdate() {
-    if (this._ctx.$state.paused()) {
+    const isPaused = this._ctx.$state.paused(),
+      isPageHidden = this._pageVisibility.visibility === 'hidden',
+      shouldListenToTimeUpdates = isPaused || isPageHidden;
+
+    if (shouldListenToTimeUpdates) {
       listenEvent(this._media, 'timeupdate', this._onTimeUpdate.bind(this));
     }
   }
@@ -269,6 +289,8 @@ export class HTMLMediaEvents {
   }
 
   private _onSeeked(event: Event) {
+    this._seekedTo = this._media.currentTime;
+
     this._updateCurrentTime(this._media.currentTime, event);
 
     this._notify('seeked', this._media.currentTime, event);

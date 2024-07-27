@@ -783,5 +783,22 @@
   "_watchWaiting": "Fn",
   "_calcJumpValue": "Ln",
   "_calcNewKeyValue": "Mn",
-  "_repeatedKeys": "Kn"
+  "_repeatedKeys": "Kn",
+  "_listenToFontStyleChanges": "Nn",
+  "_pauseFail": "Pn",
+  "_playFail": "On",
+  "_watchClipEndTime": "Rn",
+  "_watchClipStartTime": "Qn",
+  "_lastSeenTime": "Tn",
+  "_playedInterval": "Sn",
+  "_playedIntervals": "Vn",
+  "_seekedTo": "Un",
+  "_updatePlayed": "Wn",
+  "_handlePageEvent": "_n",
+  "_pageVisibility": "Zn",
+  "_safariBeforeUnloadTimeout": "Yn",
+  "_visibility": "Xn",
+  "_fullscreenActive": "bo",
+  "_getPromise": "ao",
+  "_promises": "$n"
 }

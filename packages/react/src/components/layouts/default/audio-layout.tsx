@@ -117,7 +117,7 @@ function AudioLayout() {
           {slot(slots, 'seekForwardButton', <DefaultSeekButton tooltip="top center" />)}
           <DefaultAudioTitle />
           {slot(slots, 'timeSlider', <DefaultTimeSlider />)}
-          <DefaultTimeInvert />
+          <DefaultTimeInvert slots={slots} />
           <DefaultVolumePopup orientation="vertical" tooltip="top" slots={slots} />
           {slot(slots, 'captionButton', <DefaultCaptionButton tooltip="top center" />)}
           {slot(slots, 'downloadButton', <DefaultDownloadButton />)}
@@ -191,7 +191,7 @@ function DefaultAudioTitle() {
 
   React.useEffect(() => {
     if (isTransitionActive && document.activeElement === document.body) {
-      media.player.el?.focus();
+      media.player.el?.focus({ preventScroll: true });
     }
   }, []);
 

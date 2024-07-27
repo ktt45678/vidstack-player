@@ -1,7 +1,8 @@
 import { isString } from 'maverick.js/std';
 
-import type { MediaType, Src } from '../../core';
 import type { MediaContext } from '../../core/api/media-context';
+import type { Src } from '../../core/api/src-types';
+import type { MediaType } from '../../core/api/types';
 import { preconnect } from '../../utils/network';
 import type { MediaProviderLoader } from '../types';
 import type { VimeoProvider } from './provider';
@@ -50,9 +51,9 @@ export class VimeoProviderLoader implements MediaProviderLoader<VimeoProvider> {
 
     if (!isString(src.src)) return null;
 
-    const { videoId } = resolveVimeoVideoId(src.src);
+    const { videoId, hash } = resolveVimeoVideoId(src.src);
     if (videoId) {
-      return getVimeoVideoInfo(videoId, abort).then((info) => (info ? info.poster : null));
+      return getVimeoVideoInfo(videoId, abort, hash).then((info) => (info ? info.poster : null));
     }
 
     return null;

@@ -196,44 +196,18 @@ async function publishPackage(pkgName, version, runIfNotDry) {
   }
 
   const pkgRoot = getPkgRoot(pkgName),
-    pkgPath = path.resolve(pkgRoot, 'package.json'),
-    pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8')),
     distDir = path.resolve(pkgRoot, 'dist-npm'),
-    root = (p) => path.resolve(pkgRoot, p),
-    dist = (p) => path.resolve(distDir, p);
+    pkgPath = path.resolve(distDir, 'package.json'),
+    pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
 
   if (pkg.private) {
     console.log(kleur.red(`\n🚫 Skipping private package: ${pkg.name}`));
     return;
   }
 
-  const validPkgFields = [
-    'name',
-    'description',
-    'version',
-    'license',
-    'type',
-    'types',
-    'sideEffects',
-    'engines',
-    'dependencies',
-    'peerDependencies',
-    'contributors',
-    'repository',
-    'bugs',
-    'exports',
-    'publishConfig',
-    'keywords',
-  ];
-
-  // Create package.json.
-  const distPkg = {};
-  for (const field of validPkgFields) distPkg[field] = pkg[field];
-  fs.writeFileSync(dist('package.json'), JSON.stringify(distPkg, null, 2), 'utf-8');
-
-  // Copy over license and readme.
-  fs.copyFileSync(root('LICENSE'), dist('LICENSE'));
-  fs.copyFileSync(root('README.md'), dist('README.md'));
+  // Write new version.
+  pkg.version = version;
+  fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2), 'utf-8');
 
   step(`Publishing ${pkgName}...`);
 

@@ -2,9 +2,10 @@ import { Component, method, onDispose, peek, signal, State, tick } from 'maveric
 import { animationFrameThrottle, isString, setStyle } from 'maverick.js/std';
 import type { CaptionsFileFormat } from 'media-captions';
 
-import { TextTrack, type Src, type TextTrackInit } from '../../core';
 import { useMediaContext, type MediaContext } from '../../core/api/media-context';
-import type { MediaProviderLoader } from '../../providers';
+import type { Src } from '../../core/api/src-types';
+import { TextTrack, type TextTrackInit } from '../../core/tracks/text/text-track';
+import type { MediaProviderLoader } from '../../providers/types';
 import { SourceSelection } from './source-select';
 import { Tracks } from './tracks';
 
@@ -75,6 +76,9 @@ export class MediaProvider extends Component<MediaProviderProps, MediaProviderSt
 
   @method
   load(target: HTMLElement | null | undefined) {
+    // Hide underlying provider element from screen readers.
+    target?.setAttribute('aria-hidden', 'true');
+
     // Use a RAF here to prevent hot reloads resetting provider.
     window.cancelAnimationFrame(this._loadRafId);
     this._loadRafId = requestAnimationFrame(() => this._runLoader(target));
@@ -113,7 +117,7 @@ export class MediaProvider extends Component<MediaProviderProps, MediaProviderSt
   }
 
   private _destroyProvider() {
-    this._media.delegate._notify('provider-change', null);
+    this._media?.delegate._notify('provider-change', null);
   }
 
   private _onResize() {

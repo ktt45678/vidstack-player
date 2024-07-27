@@ -2,7 +2,7 @@ import { effect } from 'maverick.js';
 import { Host, type Attributes } from 'maverick.js/element';
 import { setAttribute } from 'maverick.js/std';
 
-import { Poster, type PosterProps } from '../../components';
+import { Poster, type PosterProps } from '../../components/ui/poster';
 
 /**
  * @docs {@link https://www.vidstack.io/docs/wc/player/components/display/poster}
@@ -29,20 +29,20 @@ export class MediaPosterElement extends Host(HTMLElement, Poster) {
   protected onConnect(): void {
     const { src, alt, crossOrigin } = this.$state;
 
-    if (this._img.parentNode !== this) {
-      this.prepend(this._img);
-    }
-
-    effect(() => {
-      setAttribute(this._img, 'alt', alt());
-      setAttribute(this._img, 'crossorigin', crossOrigin());
-      setAttribute(this._img, 'src', src() || '');
-    });
-
     effect(() => {
       const { loading, hidden } = this.$state;
       this._img.style.display = loading() || hidden() ? 'none' : '';
     });
+
+    effect(() => {
+      setAttribute(this._img, 'alt', alt());
+      setAttribute(this._img, 'crossorigin', crossOrigin());
+      setAttribute(this._img, 'src', src());
+    });
+
+    if (this._img.parentNode !== this) {
+      this.prepend(this._img);
+    }
   }
 }
 

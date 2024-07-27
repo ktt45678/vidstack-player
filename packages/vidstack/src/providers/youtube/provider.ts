@@ -1,12 +1,21 @@
 import { createScope, effect, signal } from 'maverick.js';
-import { isBoolean, isNumber, isObject, isString, type DeferredPromise } from 'maverick.js/std';
+import {
+  deferredPromise,
+  isBoolean,
+  isNumber,
+  isObject,
+  isString,
+  isUndefined,
+  type DeferredPromise,
+} from 'maverick.js/std';
 
-import { TimeRange, type MediaContext, type Src } from '../../core';
+import type { MediaContext } from '../../core/api/media-context';
+import type { Src } from '../../core/api/src-types';
+import { TimeRange } from '../../core/time-ranges';
 import { preconnect } from '../../utils/network';
-import { timedPromise } from '../../utils/promise';
 import { EmbedProvider } from '../embed/EmbedProvider';
 import type { MediaProviderAdapter } from '../types';
-import type { YouTubeCommandArg } from './embed/command';
+import type { YouTubeCommand, YouTubeCommandArg } from './embed/command';
 import type { YouTubeMessage } from './embed/message';
 import type { YouTubeParams } from './embed/params';
 import { YouTubePlayerState, type YouTubePlayerStateValue } from './embed/state';
@@ -34,13 +43,12 @@ export class YouTubeProvider
 
   protected _videoId = signal('');
   protected _state: YouTubePlayerStateValue = -1;
+  protected _currentSrc: Src<string> | null = null;
+
   protected _seekingTimer = -1;
   protected _pausedSeeking = false;
-  protected _played = 0;
-  protected _playedRange = new TimeRange(0, 0);
-  protected _currentSrc: Src<string> | null = null;
-  protected _playPromise: DeferredPromise<void, string> | null = null;
-  protected _pausePromise: DeferredPromise<void, string> | null = null;
+
+  protected _promises = new Map<string, DeferredPromise<any, string>[]>();
 
   protected get _notify() {
     return this._ctx.delegate._notify;
@@ -97,34 +105,32 @@ export class YouTubeProvider
     this._notify('provider-setup', this);
   }
 
-  async play() {
-    const { paused } = this._ctx.$state;
+  destroy() {
+    this._reset();
 
-    if (!this._playPromise) {
-      this._playPromise = timedPromise<void, string>(() => {
-        this._playPromise = null;
-        if (paused()) return 'Timed out.';
-      });
-
-      this._remote('playVideo');
+    // Release all pending promises.
+    const message = 'provider destroyed';
+    for (const promises of this._promises.values()) {
+      for (const { reject } of promises) reject(message);
     }
 
-    return this._playPromise.promise;
+    this._promises.clear();
+  }
+
+  async play() {
+    return this._remote('playVideo');
+  }
+
+  protected _playFail(message: string) {
+    this._getPromise('playVideo')?.reject(message);
   }
 
   async pause() {
-    const { paused } = this._ctx.$state;
+    return this._remote('pauseVideo');
+  }
 
-    if (!this._pausePromise) {
-      this._pausePromise = timedPromise<void, string>(() => {
-        this._pausePromise = null;
-        if (!paused()) 'Timed out.';
-      });
-
-      this._remote('pauseVideo');
-    }
-
-    return this._pausePromise.promise;
+  protected _pauseFail(message: string) {
+    this._getPromise('pauseVideo')?.reject(message);
   }
 
   setMuted(muted: boolean) {
@@ -198,11 +204,20 @@ export class YouTubeProvider
   }
 
   protected _remote<T extends keyof YouTubeCommandArg>(command: T, arg?: YouTubeCommandArg[T]) {
+    let promise = deferredPromise<void, string>(),
+      promises = this._promises.get(command);
+
+    if (!promises) this._promises.set(command, (promises = []));
+
+    promises.push(promise);
+
     this._postMessage({
       event: 'command',
       func: command,
       args: arg ? [arg] : undefined,
     });
+
+    return promise.promise;
   }
 
   protected override _onLoad(): void {
@@ -217,32 +232,21 @@ export class YouTubeProvider
   }
 
   protected _onPause(trigger: Event) {
-    this._pausePromise?.resolve();
-    this._pausePromise = null;
+    this._getPromise('pauseVideo')?.resolve();
     this._notify('pause', undefined, trigger);
   }
 
   protected _onTimeUpdate(time: number, trigger: Event) {
     const { duration, realCurrentTime } = this._ctx.$state,
       hasEnded = this._state === YouTubePlayerState._Ended,
-      boundTime = hasEnded ? duration() : time,
-      detail = {
-        currentTime: boundTime,
-        played: this._getPlayedRange(boundTime),
-      };
+      boundTime = hasEnded ? duration() : time;
 
-    this._notify('time-update', detail, trigger);
+    this._notify('time-change', boundTime, trigger);
 
     // // This is the only way to detect `seeking`.
     if (!hasEnded && Math.abs(boundTime - realCurrentTime()) > 1) {
       this._notify('seeking', boundTime, trigger);
     }
-  }
-
-  protected _getPlayedRange(time: number) {
-    return this._played >= time
-      ? this._playedRange
-      : (this._playedRange = new TimeRange(0, (this._played = time)));
   }
 
   protected _onProgress(buffered: number, seekable: TimeRange, trigger: Event) {
@@ -292,7 +296,8 @@ export class YouTubeProvider
     const { started, paused, seeking } = this._ctx.$state,
       isPlaying = state === YouTubePlayerState._Playing,
       isBuffering = state === YouTubePlayerState._Buffering,
-      isPlay = (paused() || this._playPromise) && (isBuffering || isPlaying);
+      isPendingPlay = !isUndefined(this._getPromise('playVideo')),
+      isPlay = (paused() || isPendingPlay) && (isBuffering || isPlaying);
 
     if (isBuffering) this._notify('waiting', undefined, trigger);
 
@@ -302,8 +307,7 @@ export class YouTubeProvider
 
     // Embed incorrectly plays on initial seek operation.
     if (!started() && isPlay && this._pausedSeeking) {
-      this._playPromise?.reject('invalid internal play operation');
-      this._playPromise = null;
+      this._playFail('invalid internal play operation');
 
       if (isPlaying) {
         this.pause();
@@ -315,12 +319,17 @@ export class YouTubeProvider
 
     // Attempt to detect `play` events early.
     if (isPlay) {
-      this._playPromise?.resolve();
-      this._playPromise = null;
+      this._getPromise('playVideo')?.resolve();
       this._notify('play', undefined, trigger);
     }
 
     switch (state) {
+      case YouTubePlayerState._Unstarted:
+        // These methods will only reject if a play/pause is actually pending.
+        this._playFail('provider rejected');
+        this._pauseFail('provider rejected');
+        this._notify('pause', undefined, trigger);
+        break;
       case YouTubePlayerState._Cued:
         this._onReady(trigger);
         break;
@@ -393,10 +402,10 @@ export class YouTubeProvider
   protected _reset() {
     this._state = -1;
     this._seekingTimer = -1;
-    this._played = 0;
-    this._playedRange = new TimeRange(0, 0);
-    this._playPromise = null;
-    this._pausePromise = null;
     this._pausedSeeking = false;
+  }
+
+  protected _getPromise(command: YouTubeCommand) {
+    return this._promises.get(command)?.shift();
   }
 }

@@ -9,22 +9,17 @@ import {
 } from 'maverick.js';
 import { DOMEvent, isArray, isString, noop } from 'maverick.js/std';
 
-import {
-  isVideoQualitySrc,
-  type MediaContext,
-  type MediaPlayerProps,
-  type ParsedDASHManifest,
-  type Src,
-} from '../../core';
-import {
-  AudioProviderLoader,
-  HLSProviderLoader,
-  VideoProviderLoader,
-  VimeoProviderLoader,
-  YouTubeProviderLoader,
-  type MediaProviderLoader,
-} from '../../providers';
+import type { MediaContext } from '../../core/api/media-context';
+import type { MediaPlayerProps } from '../../core/api/player-props';
+import { isVideoQualitySrc, type Src } from '../../core/api/src-types';
+import type { ParsedDASHManifest } from '../../core/api/types';
+import { AudioProviderLoader } from '../../providers/audio/loader';
 import { DASHProviderLoader } from '../../providers/dash/loader';
+import { HLSProviderLoader } from '../../providers/hls/loader';
+import type { MediaProviderLoader } from '../../providers/types';
+import { VideoProviderLoader } from '../../providers/video/loader';
+import { VimeoProviderLoader } from '../../providers/vimeo/loader';
+import { YouTubeProviderLoader } from '../../providers/youtube/loader';
 import {
   resolveStreamTypeFromDASHManifest,
   resolveStreamTypeFromHLSManifest,
@@ -84,6 +79,7 @@ export class SourceSelection {
 
       this._loader.set(loader);
       this._initialize = true;
+      break;
     }
   }
 
@@ -153,8 +149,17 @@ export class SourceSelection {
         ),
       ).then((sources) => {
         if (abort.signal.aborted) return;
-        this._findNewSource(peek($state.source), sources);
+
+        const newSource = this._findNewSource(peek($state.source), sources);
+
         tick();
+
+        if (!newSource.src) {
+          this._notify('error', {
+            message: 'Failed to load resource.',
+            code: 4,
+          });
+        }
       });
 
       return () => abort.abort();
@@ -333,15 +338,13 @@ export class SourceSelection {
 }
 
 function normalizeSrc(src: MediaPlayerProps['src']): Src[] {
-  return (isArray(src) ? src : [src])
-    .map((src) => {
-      if (isString(src)) {
-        return { src, type: inferType(src) };
-      } else {
-        return { ...src, type: inferType(src.src, src.type) };
-      }
-    })
-    .sort((a) => (a.type === '?' ? 1 : -1));
+  return (isArray(src) ? src : [src]).map((src) => {
+    if (isString(src)) {
+      return { src, type: inferType(src) };
+    } else {
+      return { ...src, type: inferType(src.src, src.type) };
+    }
+  });
 }
 
 function inferType(src: unknown, type?: string) {

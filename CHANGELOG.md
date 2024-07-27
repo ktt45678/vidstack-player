@@ -2,7 +2,160 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.11.21-F1](https://github.com/vidstack/player/releases/tag/v1.11.21-F1) (2024-05-12)
+## [1.11.30-next](https://github.com/vidstack/player/releases/tag/v1.11.30-next) (2024-07-20)
+
+### ✨ Features
+
+#### Player
+
+- vimeo fullscreen support on iphone ([a56eb3c](https://github.com/vidstack/player/commit/a56eb3c130cabb7d73a8758eb3cc580420fa8b03))
+
+### 🐛 Bug Fixes
+
+#### Player
+
+- submenu not opening when inside dialog in shadow dom ([12c5c3f](https://github.com/vidstack/player/commit/12c5c3f65f96e634b2262fce635fbe15e00cf980))
+- vimeo video freezes on loop when out of viewport ([3de2980](https://github.com/vidstack/player/commit/3de2980c84599dcd5286a3dbab4adc36c2409ead))
+- better youtube command promise handling ([4d02919](https://github.com/vidstack/player/commit/4d02919266d60700c42eff181a15bafce3bce282))
+
+## [1.11.29-next](https://github.com/vidstack/player/releases/tag/v1.11.29-next) (2024-07-12)
+
+### 🐛 Bug Fixes
+
+#### Player
+
+- hide poster when not defined ([a6b1453](https://github.com/vidstack/player/commit/a6b1453ec2ce090777c836eddb1f5c975e00f57f))
+- remove console log (#1346) ([288c8ae](https://github.com/vidstack/player/commit/288c8aea26bb9c91626aaec5d09157ad9575a9ae))
+
+## [1.11.28-next](https://github.com/vidstack/player/releases/tag/v1.11.28-next) (2024-07-11)
+
+### 🐛 Bug Fixes
+
+#### Player
+
+- thumbnail loader race condition ([cebfe8f](https://github.com/vidstack/player/commit/cebfe8f25499a9e0e4915dac48b95ef7c96dc30d))
+- time updates stop when page is hidden ([bf59ba5](https://github.com/vidstack/player/commit/bf59ba54181ec20d1e2b50e37d7a2f5299173e01))
+
+#### Player (CDN)
+
+- static blocks throwing on iOS 15 ([537fc45](https://github.com/vidstack/player/commit/537fc45870de8a5083c837cc012f36eed6ed97d0))
+
+## [1.11.27-next](https://github.com/vidstack/player/releases/tag/v1.11.27-next) (2024-07-10)
+
+### 🐛 Bug Fixes
+
+#### Player
+
+- time stutter on safari ([8857154](https://github.com/vidstack/player/commit/8857154d16a7711848078b893580cb62000586ff))
+- bundle plugin incorrectly imports plyr layout ([fa91c21](https://github.com/vidstack/player/commit/fa91c21a98c07caee1b7cac3d93094a81d2f5ede))
+- improve `played` tracking across providers ([513db34](https://github.com/vidstack/player/commit/513db3434cac3f9d261404754a39f46775621ff8))
+- toggle button non-passive event listener ([a2a3ce3](https://github.com/vidstack/player/commit/a2a3ce30fee5cf210b06a5e5fd70cdafc982b85d))
+
+## [1.11.26-next](https://github.com/vidstack/player/releases/tag/v1.11.26-next) (2024-07-09)
+
+### ✨ Features
+
+#### Player
+
+- new `changeDuration` on remote control ([71d4594](https://github.com/vidstack/player/commit/71d45946c32ba13fdcfd74f837e96bb9a6cf80fc))
+- new `changeClipStart` and `changeClipEnd` on remote control ([52ae3db](https://github.com/vidstack/player/commit/52ae3dbf26aba0f13e8ae806ebf0e28a00291cf1))
+
+### 🐛 Bug Fixes
+
+#### Player
+
+- auto find and use `<dialog>` as layout menu container ([9dac0ba](https://github.com/vidstack/player/commit/9dac0ba13d0e9c4f7602e1d71da0d75769f39372))
+- fire error event when source fails to load ([1baf446](https://github.com/vidstack/player/commit/1baf44624904c6cc8f053bf3300529015a4b7b41))
+- youtube autoplay prevents interaction on fail ([6b3457d](https://github.com/vidstack/player/commit/6b3457db6b6f360849c38fa7b49b8939c7ab4c63))
+
+## [1.11.25-next](https://github.com/vidstack/player/releases/tag/v1.11.25-next) (2024-07-04)
+
+### 🐛 Bug Fixes
+
+#### Player
+
+- update maverick to `0.42.0` ([60ba0b9](https://github.com/vidstack/player/commit/60ba0b91a0fc0a857c062352ebe00f823f702555))
+- prevent blocking native embed controls ([6da5bfc](https://github.com/vidstack/player/commit/6da5bfc2a6e4fd317f4dcefa9cc096723783c0f2))
+- add `audio/mp3` to audio types ([a0a4470](https://github.com/vidstack/player/commit/a0a4470f35e2fa8bee4da317a08237a4064dcc8b))
+- remove poster img src when empty (#1328) ([b8a53b2](https://github.com/vidstack/player/commit/b8a53b23decd7c801a12b8f239139b055bec3da5))
+- remove hls network error retries (#1318) ([177c30e](https://github.com/vidstack/player/commit/177c30ea7c8b0ef4c47efce221b8252c8c843fd3))
+
+#### Player (React)
+
+- clean up exports ([ee8c86b](https://github.com/vidstack/player/commit/ee8c86be3016c10f67b139e1f10201145866be00))
+
+## [1.11.24-next](https://github.com/vidstack/player/releases/tag/v1.11.24-next) (2024-06-20)
+
+### 🐛 Bug Fixes
+
+#### Player
+
+- ignore key shortcut if invalid modifier pressed ([9608ad3](https://github.com/vidstack/player/commit/9608ad3e322f3cf1fac16d279c3b1bce52f4e6ea))
+
+#### Player (React)
+
+- captions component throws when switching view types ([471f314](https://github.com/vidstack/player/commit/471f31421baec77cc81d998fde0b0193463dd00c))
+
+## [1.11.23-next](https://github.com/vidstack/player/releases/tag/v1.11.23-next) (2024-06-19)
+
+### ✨ Features
+
+#### Player
+
+- new `menuContainer` default layout prop ([0efc998](https://github.com/vidstack/player/commit/0efc9984ba74a023cd25c5533f74cd4330739a62))
+
+### 🐛 Bug Fixes
+
+#### Player
+
+- detect `flac` audio ext ([5359e80](https://github.com/vidstack/player/commit/5359e802012bfda3eaec7efd1f13c694496ae9ed))
+- announcer setting state after component is destroyed (#1303) ([0edf188](https://github.com/vidstack/player/commit/0edf18888be1fd0e448f5e518d2e362c0b480bbc))
+- improve unlisted vimeo video handling (#1315) ([5d5ae75](https://github.com/vidstack/player/commit/5d5ae75fcff47f40d3f8f79cc84e62e5dc92e569))
+- default chapter radio padding broken ([7e9a624](https://github.com/vidstack/player/commit/7e9a6241af78024d7ceec2020c10010cc2cb61d5))
+- `delegate` called on `undefined` error on provider destroy ([f968659](https://github.com/vidstack/player/commit/f96865972b61b1e5579d835d14f922c9cc8ba187))
+- maintain provided source order ([f583604](https://github.com/vidstack/player/commit/f583604ece59a19f649a57c904d41b58852950c7))
+
+#### Player (React)
+
+- audio layout end time slot not working ([a896970](https://github.com/vidstack/player/commit/a896970e319fc6acfb75b6e342940a2a5f580c36))
+- support `exactOptionalPropertyTypes` ([25d0831](https://github.com/vidstack/player/commit/25d08315ac2216cb2c3bb0d400cd0d514c548271))
+
+## [1.11.22-next](https://github.com/vidstack/player/releases/tag/v1.11.22-next) (2024-06-07)
+
+### 🐛 Bug Fixes
+
+#### Player
+
+- typeerror format not func ([a8be90b](https://github.com/vidstack/player/commit/a8be90b698ab3b74972c60b5702aa6f940bdd605))
+- css reset breaking some menu styles ([6306b13](https://github.com/vidstack/player/commit/6306b1317f02f5414559442b590a904de01421e8))
+- font settings should apply on load ([223bef3](https://github.com/vidstack/player/commit/223bef3754c5fce7a1aa62403be1f4fcb2f700c8))
+- autoplay breaks on safari ([b194d06](https://github.com/vidstack/player/commit/b194d060bc189b40837a17f6453f4716875560ba))
+- default load play button has incorrect color ([e0ebc2d](https://github.com/vidstack/player/commit/e0ebc2d074ca3032b0926455660ba10ff72139bf))
+- default live button at edge not red ([4b0e109](https://github.com/vidstack/player/commit/4b0e109bc0dc436ceeb906083bef88d9137b9544))
+- keyboard display should not show empty icons ([008141d](https://github.com/vidstack/player/commit/008141ded3766d8a3770715c40bd0dc6b83cc016))
+- video border radius cssvar should apply to controls ([bb19e05](https://github.com/vidstack/player/commit/bb19e05a1a1ac7082646bb3c8d8ae4916055585f))
+
+#### Player (React)
+
+- incorrect class on default playback menu ([28c7598](https://github.com/vidstack/player/commit/28c759825842b823aa970548e3dd51bcda96c4a6))
+
+## [1.11.21-next](https://github.com/vidstack/player/releases/tag/v1.11.21-next) (2024-04-29)
+
+### 🐛 Bug Fixes
+
+#### Player
+
+- media session check throwing during ssr ([963bb8c](https://github.com/vidstack/player/commit/963bb8cac00d9367316aab357717480484e26a36))
+
+## [1.11.20-next](https://github.com/vidstack/player/releases/tag/v1.11.20-next) (2024-04-29)
+
+### 🐛 Bug Fixes
+
+#### Player
+
+- check media session is supported (#1268) ([e6a3fb4](https://github.com/vidstack/player/commit/e6a3fb489ba6a7546638485b84d388f03cce52df))
+
+## [1.11.19-next](https://github.com/vidstack/player/releases/tag/v1.11.19-next) (2024-04-22)
 
 ### ✨ Features
 

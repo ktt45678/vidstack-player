@@ -2,7 +2,7 @@ import { computed, effect } from 'maverick.js';
 import { Host } from 'maverick.js/element';
 import { setAttribute } from 'maverick.js/std';
 
-import { MediaProvider } from '../../components';
+import { MediaProvider } from '../../components/provider/provider';
 import { useMediaContext, type MediaContext } from '../../core/api/media-context';
 
 /**
@@ -61,19 +61,24 @@ export class MediaProviderElement extends Host(HTMLElement, MediaProvider) {
 
         if (isEmbed && target) {
           effect(() => {
-            const { nativeControls } = this._media.$state,
-              showControls = nativeControls();
+            const { nativeControls, viewType } = this._media.$state,
+              showNativeControls = nativeControls(),
+              isAudioView = viewType() === 'audio',
+              showBlocker = !showNativeControls && !isAudioView;
 
-            if (showControls) {
+            if (showBlocker) {
+              this._blocker = this.querySelector('.vds-blocker');
+              if (!this._blocker) {
+                this._blocker = document.createElement('div');
+                this._blocker.classList.add('vds-blocker');
+                target.after(this._blocker);
+              }
+            } else {
               this._blocker?.remove();
               this._blocker = null;
-            } else {
-              this._blocker = this.querySelector('.vds-blocker') ?? document.createElement('div');
-              this._blocker.classList.add('vds-blocker');
-              target.after(this._blocker);
             }
 
-            setAttribute(target, 'data-no-controls', !showControls);
+            setAttribute(target, 'data-no-controls', !showNativeControls);
           });
         }
       }
@@ -93,9 +98,6 @@ export class MediaProviderElement extends Host(HTMLElement, MediaProvider) {
   private _createAudio() {
     const audio =
       this._target instanceof HTMLAudioElement ? this._target : document.createElement('audio');
-
-    setAttribute(audio, 'preload', 'none');
-    setAttribute(audio, 'aria-hidden', 'true');
 
     const { controls, crossOrigin } = this._media.$state;
     effect(() => {

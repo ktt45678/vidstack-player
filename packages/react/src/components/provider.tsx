@@ -6,6 +6,7 @@ import {
   useStateContext,
   type ReactElementProps,
 } from 'maverick.js/react';
+import { isString } from 'maverick.js/std';
 import { mediaState, type MediaProviderLoader } from 'vidstack';
 
 import { useMediaContext } from '../hooks/use-media-context';
@@ -22,6 +23,7 @@ const MediaProviderBridge = createReactComponent(MediaProviderInstance);
 export interface MediaProviderProps
   extends Omit<ReactElementProps<MediaProviderInstance>, 'loaders'> {
   loaders?: Array<{ new (): MediaProviderLoader }>;
+  iframeProps?: React.IframeHTMLAttributes<HTMLIFrameElement>;
   mediaProps?: React.HTMLAttributes<HTMLMediaElement>;
   children?: React.ReactNode;
   ref?: React.Ref<MediaProviderInstance>;
@@ -39,14 +41,14 @@ export interface MediaProviderProps
  * ```
  */
 const MediaProvider = React.forwardRef<MediaProviderInstance, MediaProviderProps>(
-  ({ loaders = [], children, mediaProps, ...props }, forwardRef) => {
+  ({ loaders = [], children, iframeProps, mediaProps, ...props }, forwardRef) => {
     const reactLoaders = React.useMemo(() => loaders.map((Loader) => new Loader()), loaders);
 
     return (
       <MediaProviderBridge {...props} loaders={reactLoaders} ref={forwardRef}>
         {(props, instance) => (
           <div {...props}>
-            <MediaOutlet {...mediaProps} provider={instance} />
+            <MediaOutlet provider={instance} mediaProps={mediaProps} iframeProps={iframeProps} />
             {children}
           </div>
         )}
@@ -62,14 +64,18 @@ export { MediaProvider };
  * MediaOutlet
  * -----------------------------------------------------------------------------------------------*/
 
-interface MediaOutletProps extends React.HTMLAttributes<HTMLMediaElement> {
+interface MediaOutletProps {
   provider: MediaProviderInstance;
+  mediaProps?: React.HTMLAttributes<HTMLMediaElement>;
+  iframeProps?: React.IframeHTMLAttributes<HTMLIFrameElement>;
 }
 
-function MediaOutlet({ provider, ...props }: MediaOutletProps) {
-  const { crossOrigin, poster, remotePlaybackInfo, nativeControls } = useStateContext(mediaState),
+function MediaOutlet({ provider, mediaProps, iframeProps }: MediaOutletProps) {
+  const { sources, crossOrigin, poster, remotePlaybackInfo, nativeControls, viewType } =
+      useStateContext(mediaState),
     { loader } = provider.$state,
     { $provider: $$provider, $providerSetup: $$providerSetup } = useMediaContext(),
+    $sources = useSignal(sources),
     $nativeControls = useSignal(nativeControls),
     $crossOrigin = useSignal(crossOrigin),
     $poster = useSignal(poster),
@@ -78,12 +84,15 @@ function MediaOutlet({ provider, ...props }: MediaOutletProps) {
     $providerSetup = useSignal($$providerSetup),
     $remoteInfo = useSignal(remotePlaybackInfo),
     $mediaType = $loader?.mediaType(),
+    $viewType = useSignal(viewType),
+    isAudioView = $viewType === 'audio',
     isYouTubeEmbed = $loader?.name === 'youtube',
     isVimeoEmbed = $loader?.name === 'vimeo',
     isEmbed = isYouTubeEmbed || isVimeoEmbed,
     isRemotion = $loader?.name === 'remotion',
     isGoogleCast = $loader?.name === 'google-cast',
-    [googleCastIconPaths, setGoogleCastIconPaths] = React.useState('');
+    [googleCastIconPaths, setGoogleCastIconPaths] = React.useState(''),
+    [hasMounted, setHasMounted] = React.useState(false);
 
   React.useEffect(() => {
     if (!isGoogleCast || googleCastIconPaths) return;
@@ -91,6 +100,10 @@ function MediaOutlet({ provider, ...props }: MediaOutletProps) {
       setGoogleCastIconPaths(mod.default);
     });
   }, [isGoogleCast]);
+
+  React.useEffect(() => {
+    setHasMounted(true);
+  }, []);
 
   if (isGoogleCast) {
     return (
@@ -133,7 +146,11 @@ function MediaOutlet({ provider, ...props }: MediaOutletProps) {
         React.Fragment,
         null,
         React.createElement('iframe', {
-          className: isYouTubeEmbed ? 'vds-youtube' : 'vds-vimeo',
+          ...iframeProps,
+          className:
+            (iframeProps?.className ? `${iframeProps.className} ` : '') + isYouTubeEmbed
+              ? 'vds-youtube'
+              : 'vds-vimeo',
           suppressHydrationWarning: true,
           tabIndex: !$nativeControls ? -1 : undefined,
           'aria-hidden': 'true',
@@ -142,18 +159,25 @@ function MediaOutlet({ provider, ...props }: MediaOutletProps) {
             provider.load(el);
           },
         }),
-        !$nativeControls ? React.createElement('div', { className: 'vds-blocker' }) : null,
+        !$nativeControls && !isAudioView
+          ? React.createElement('div', { className: 'vds-blocker' })
+          : null,
       )
     : $mediaType
       ? React.createElement($mediaType === 'audio' ? 'audio' : 'video', {
-          ...props,
+          ...mediaProps,
           controls: $nativeControls ? true : null,
           crossOrigin: typeof $crossOrigin === 'boolean' ? '' : $crossOrigin,
           poster: $mediaType === 'video' && $nativeControls && $poster ? $poster : null,
-          preload: 'none',
-          'aria-hidden': 'true',
           suppressHydrationWarning: true,
-          ref(el: HTMLElement) {
+          children: !hasMounted
+            ? $sources.map(({ src, type }) =>
+                isString(src) ? (
+                  <source src={src} type={type !== '?' ? type : undefined} key={src} />
+                ) : null,
+              )
+            : null,
+          ref(el: HTMLMediaElement) {
             provider.load(el);
           },
         })

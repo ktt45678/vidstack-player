@@ -5,6 +5,9 @@ import type { ScreenOrientationLockType } from '../../foundation/orientation/typ
 export interface MediaRequestEvents {
   'media-airplay-request': MediaAirPlayRequestEvent;
   'media-audio-track-change-request': MediaAudioTrackChangeRequestEvent;
+  'media-clip-start-change-request': MediaClipStartChangeRequestEvent;
+  'media-clip-end-change-request': MediaClipEndChangeRequestEvent;
+  'media-duration-change-request': MediaDurationChangeRequestEvent;
   'media-enter-fullscreen-request': MediaEnterFullscreenRequestEvent;
   'media-exit-fullscreen-request': MediaExitFullscreenRequestEvent;
   'media-enter-pip-request': MediaEnterPIPRequestEvent;
@@ -92,6 +95,33 @@ export type MediaFullscreenRequestTarget = 'prefer-media' | 'media' | 'provider'
  * @composed
  */
 export interface MediaAudioTrackChangeRequestEvent extends DOMEvent<number> {}
+
+/**
+ * Fired when requesting to change the clip start time. The event `detail` specifies the new start
+ * time in seconds.
+ *
+ * @bubbles
+ * @composed
+ */
+export interface MediaClipStartChangeRequestEvent extends DOMEvent<number> {}
+
+/**
+ * Fired when requesting to change the clip end time. The event `detail` specifies the new end
+ * time in seconds.
+ *
+ * @bubbles
+ * @composed
+ */
+export interface MediaClipEndChangeRequestEvent extends DOMEvent<number> {}
+
+/**
+ * Fired when requesting to change the length of the media. The event `detail` specifies the
+ * new length in seconds.
+ *
+ * @bubbles
+ * @composed
+ */
+export interface MediaDurationChangeRequestEvent extends DOMEvent<number> {}
 
 /**
  * Fired when requesting media to enter fullscreen. The event `detail` can specify the

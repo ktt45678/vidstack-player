@@ -1,7 +1,7 @@
 import { isWriteSignal, ViewController, type ReadSignal } from 'maverick.js';
 import { ariaBool } from 'maverick.js/std';
 
-import { ARIAKeyShortcuts } from '../../../core';
+import { ARIAKeyShortcuts } from '../../../core/keyboard/aria-shortcuts';
 import { FocusVisibleController } from '../../../foundation/observers/focus-visible';
 import { onPress, setAttributeIfEmpty } from '../../../utils/dom';
 
@@ -51,7 +51,9 @@ export class ToggleButtonController extends ViewController<ToggleButtonControlle
 
     // Prevent these events too when toggle is disabled.
     for (const type of ['click', 'touchstart'] as const) {
-      this.listen(type, this._onInteraction.bind(this));
+      this.listen(type, this._onInteraction.bind(this), {
+        passive: true,
+      });
     }
   }
 

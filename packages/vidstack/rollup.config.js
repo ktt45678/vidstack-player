@@ -12,6 +12,8 @@ import { defineConfig } from 'rollup';
 import dts from 'rollup-plugin-dts';
 import esbuildPlugin from 'rollup-plugin-esbuild';
 
+import { copyPkgInfo } from '../../.scripts/copy-pkg-info.js';
+
 const MODE_WATCH = process.argv.includes('-w'),
   MODE_TYPES = process.argv.includes('--config-types'),
   MODE_CDN = process.argv.includes('--config-cdn'),
@@ -27,6 +29,8 @@ const NPM_EXTERNAL_PACKAGES = [
     'media-captions',
     'media-icons',
     'media-icons/element',
+    /^@floating-ui/,
+    /^lit-html/,
     'jassub',
   ],
   CDN_EXTERNAL_PACKAGES = ['media-captions', 'media-icons', 'media-icons/element'],
@@ -64,10 +68,11 @@ function getBundles() {
   }
 }
 
+/**
+ * @param {string} id
+ */
 function isLibraryId(id) {
-  return ['maverick', 'lit-html', '@floating-ui', 'fscreen', 'compute-scroll-into-view'].some(
-    (frameworkId) => id.includes(frameworkId),
-  );
+  return id.includes('node_modules');
 }
 
 /**
@@ -89,6 +94,8 @@ function getTypesBundles() {
       output: {
         dir: 'dist-npm',
         chunkFileNames: 'types/vidstack-[hash].d.ts',
+        compact: false,
+        minifyInternalExports: false,
         manualChunks(id) {
           if (isLibraryId(id)) {
             return 'framework.d';
@@ -124,7 +131,11 @@ function getTypesBundles() {
     },
     {
       input: 'types/plugins.d.ts',
-      output: { file: 'dist-npm/plugins.d.ts' },
+      output: {
+        file: 'dist-npm/plugins.d.ts',
+        compact: false,
+        minifyInternalExports: false,
+      },
       external: PLUGINS_EXTERNAL_PACKAGES,
       plugins: [dts({ respectExternal: true })],
     },
@@ -189,6 +200,8 @@ function defineNPMBundle({ target, type, minify }) {
     external: NPM_EXTERNAL_PACKAGES,
     output: {
       format: 'esm',
+      compact: false,
+      minifyInternalExports: false,
       dir: `dist-npm/${type.replace('local-', '')}`,
       chunkFileNames: 'chunks/vidstack-[hash].js',
       manualChunks(id) {
@@ -205,14 +218,16 @@ function defineNPMBundle({ target, type, minify }) {
             ? ['production', 'default']
             : ['development', 'production', 'default'],
       }),
-      !isProd && {
-        name: 'npm-artifacts',
-        async buildEnd() {
-          await buildDefaultTheme();
-          await fsExtra.copy('npm', 'dist-npm');
-          await fsExtra.copy('styles/player', 'dist-npm/player/styles');
+      !isProd &&
+        !isServer && {
+          name: 'npm-artifacts',
+          async buildEnd() {
+            await copyPkgInfo();
+            await buildDefaultTheme();
+            await fsExtra.copy('npm', 'dist-npm');
+            await fsExtra.copy('styles/player', 'dist-npm/player/styles');
+          },
         },
-      },
       isServer && {
         name: 'server-bundle',
         async transform(code, id) {
@@ -241,19 +256,28 @@ function defineNPMBundle({ target, type, minify }) {
           __TEST__: 'false',
         },
       }),
+      !!target && {
+        name: 'target-syntax',
+        transform(code, id) {
+          if (/node_modules.*?\.js/.test(id)) {
+            return esbuildTransform(code, {
+              target,
+              platform: 'neutral',
+            }).then((t) => t.code);
+          }
+        },
+      },
       shouldMangle && {
         name: 'mangle',
         async transform(code, id) {
           if (id.includes('node_modules')) return null;
-          return (
-            await esbuildTransform(code, {
-              target: 'esnext',
-              platform: 'neutral',
-              mangleProps: /^_/,
-              mangleCache: MANGLE_CACHE,
-              reserveProps: /^__/,
-            })
-          ).code;
+          return esbuildTransform(code, {
+            target: 'esnext',
+            platform: 'neutral',
+            mangleProps: /^_/,
+            mangleCache: MANGLE_CACHE,
+            reserveProps: /^__/,
+          }).then((t) => t.code);
         },
       },
     ],
@@ -373,7 +397,7 @@ function defineCDNBundle({ dev = false, input, dir, file, legacy = false }) {
     external: CDN_EXTERNAL_PACKAGES,
     plugins: [
       .../** @type {*} */ (npm.plugins),
-      {
+      !legacy && {
         // This plugin rewrites chunk paths so our URL rewrites to jsDelivr work.
         name: 'cdn-chunks',
         async generateBundle(_, bundle) {
@@ -465,7 +489,12 @@ function getPluginsBundles() {
   return [
     {
       input: 'src/plugins.ts',
-      output: { file: 'dist-npm/plugins.js', format: 'esm' },
+      output: {
+        file: 'dist-npm/plugins.js',
+        format: 'esm',
+        compact: false,
+        minifyInternalExports: false,
+      },
       external: PLUGINS_EXTERNAL_PACKAGES,
       treeshake: true,
       plugins: [

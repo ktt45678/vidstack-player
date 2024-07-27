@@ -29,12 +29,9 @@ export class ThumbnailsLoader {
 
   protected _onLoadCues() {
     const { canLoad } = this._media.$state;
-
     if (!canLoad()) return;
 
-    const src = this.$src(),
-      abort = new AbortController();
-
+    const src = this.$src();
     if (!src) return;
 
     if (isString(src) && cache.has(src)) {
@@ -43,7 +40,7 @@ export class ThumbnailsLoader {
       cache.delete(src);
       cache.set(src, cues);
 
-      if (cache.size > 30) {
+      if (cache.size > 99) {
         const firstKey = cache.keys().next().value;
         cache.delete(firstKey);
       }
@@ -57,7 +54,6 @@ export class ThumbnailsLoader {
         const promise = new Promise<ThumbnailImage[]>(async (resolve, reject) => {
           try {
             const response = await fetch(src, {
-                signal: abort.signal,
                 credentials: getRequestCredentials(crossOrigin),
               }),
               isJSON = response.headers.get('content-type') === 'application/json';
@@ -104,11 +100,10 @@ export class ThumbnailsLoader {
           }
         })
           .then((images) => {
-            if (!abort.signal.aborted) cache.set(currentKey, images);
+            cache.set(currentKey, images);
             return images;
           })
           .catch((error) => {
-            if (abort.signal.aborted) return;
             this._onError(src, error);
           })
           .finally(() => {
@@ -119,7 +114,6 @@ export class ThumbnailsLoader {
       }
 
       pending.get(currentKey)?.then((images) => {
-        if (abort.signal.aborted) return;
         this.$images.set(images || []);
       });
     } else if (isArray(src)) {
@@ -139,7 +133,6 @@ export class ThumbnailsLoader {
     }
 
     return () => {
-      abort.abort();
       this.$images.set([]);
     };
   }

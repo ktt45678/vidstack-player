@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import { useSignal } from 'maverick.js/react';
+import { composeRefs, useSignal } from 'maverick.js/react';
 import { isBoolean } from 'maverick.js/std';
 import {
   type DefaultLayoutTranslations,
@@ -74,6 +74,12 @@ export interface DefaultLayoutProps<Slots = unknown> extends PrimitivePropsWithR
    * Translation map from english to your desired language for words used throughout the layout.
    */
   translations?: Partial<DefaultLayoutTranslations> | null;
+  /**
+   * A document query selector string or `HTMLElement` to mount menus inside.
+   *
+   * @defaultValue `document.body`
+   */
+  menuContainer?: string | HTMLElement | null;
   /**
    * Specifies whether menu buttons should be placed in the top or bottom controls group. This
    * only applies to the large video layout.
@@ -153,6 +159,7 @@ export function createDefaultMediaLayout({
         icons,
         colorScheme = 'system',
         download = null,
+        menuContainer = null,
         menuGroup = 'bottom',
         noAudioGain = false,
         audioGains = { min: 0, max: 300, step: 25 },
@@ -188,7 +195,8 @@ export function createDefaultMediaLayout({
         isForcedLayout = isBoolean(smallLayoutWhen),
         isLoadLayout = $load === 'play' && !$canLoad,
         canRender = $canLoad || isForcedLayout || isLoadLayout,
-        colorSchemeClass = useColorSchemeClass(colorScheme);
+        colorSchemeClass = useColorSchemeClass(colorScheme),
+        layoutEl = createSignal<HTMLElement | null>(null);
 
       useSignal($smallWhen);
 
@@ -205,7 +213,7 @@ export function createDefaultMediaLayout({
           data-lg={!isSmallLayout ? '' : null}
           data-size={isSmallLayout ? 'sm' : 'lg'}
           data-no-scrub-gesture={noScrubGesture ? '' : null}
-          ref={forwardRef}
+          ref={composeRefs(layoutEl.set as any, forwardRef)}
         >
           {canRender && isMatch ? (
             <DefaultLayoutContext.Provider
@@ -216,9 +224,11 @@ export function createDefaultMediaLayout({
                 colorScheme,
                 download,
                 isSmallLayout,
+                menuContainer,
                 menuGroup,
                 noAudioGain,
                 audioGains,
+                layoutEl,
                 noGestures,
                 noKeyboardAnimations,
                 noModal,

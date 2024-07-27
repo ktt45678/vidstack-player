@@ -1,18 +1,19 @@
 import { isString } from 'maverick.js/std';
 
-import type { ParsedDASHManifest, Src } from '../core';
+import type { Src } from '../core/api/src-types';
+import type { ParsedDASHManifest } from '../core/api/types';
 import { canPlayHLSNatively } from './support';
 
 // https://github.com/cookpete/react-player/blob/master/src/patterns.js#L16
 export const AUDIO_EXTENSIONS =
-  /\.(m4a|m4b|mp4a|mpga|mp2|mp2a|mp3|m2a|m3a|wav|weba|aac|oga|spx)($|\?)/i;
+  /\.(m4a|m4b|mp4a|mpga|mp2|mp2a|mp3|m2a|m3a|wav|weba|aac|oga|spx|flac)($|\?)/i;
 
 // TODO: We'll need to extend this later.
 export const AUDIO_TYPES = new Set<string>([
   'audio/mpeg',
   'audio/ogg',
   'audio/3gp',
-  'audio/mp4',
+  'audio/mp3',
   'audio/webm',
   'audio/flac',
 ]);
