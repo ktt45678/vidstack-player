@@ -5,6 +5,7 @@ import { camelToKebabCase, DOMEvent, isNumber, isString, listenEvent } from 'mav
 import type { MediaContext } from '../../core/api/media-context';
 import type { Src } from '../../core/api/src-types';
 import { QualitySymbol } from '../../core/quality/symbols';
+import type { VideoQuality } from '../../core/quality/video-quality';
 import { TextTrackSymbol } from '../../core/tracks/text/symbols';
 import { TextTrack } from '../../core/tracks/text/text-track';
 import { ListSymbol } from '../../foundation/list/symbols';
@@ -21,6 +22,7 @@ const toDOMEventType = (type: string) => `dash-${camelToKebabCase(type)}`;
 export class DASHController {
   private _instance: DASH.MediaPlayerClass | null = null;
   private _stopLiveSync: (() => void) | null = null;
+  private _trackQualityChange: VideoQuality | null = null;
 
   _config: Partial<DASH.MediaPlayerSettingClass> = {};
   _callbacks = new Set<DASHInstanceCallback>();
@@ -181,13 +183,34 @@ export class DASHController {
         const trigger = this._createDOMEvent(event);
         this._ctx.audioTracks[ListSymbol._select](track, true, trigger);
       }
+    } else if (mediaType === 'video') {
+      if (this._instance) {
+        if (this._instance.isPaused() && !this._ctx.player.paused) {
+          this._instance.play();
+        }
+      }
     }
   }
 
   private _onQualityChange(event: DASH.QualityChangeRenderedEvent) {
     if (event.mediaType !== 'video') return;
+    if (!this._instance) return;
 
-    const quality = this._ctx.qualities[event.newQuality];
+    const currentTrack = this._instance.getCurrentTrackFor('video');
+    if (!currentTrack) return;
+
+    let quality: VideoQuality | undefined | null = null;
+    if (this._trackQualityChange) {
+      quality = this._trackQualityChange;
+      this._trackQualityChange = null;
+    } else {
+      // const currentQualityIndex = this._instance.getQualityFor('video');
+      // const currentQuality = currentTrack.bitrateList[event.newQuality];
+      // const qualities = this._ctx.qualities.toArray();
+      // quality = qualities.find(q => q.id === currentQuality.id) ??
+      //   qualities.find(q => q.height === currentQuality.height && q.bitrate === currentQuality.bandwidth) ?? null;
+      quality = this._ctx.qualities[event.newQuality];
+    }
 
     if (quality) {
       const trigger = this._createDOMEvent(event);
@@ -223,9 +246,9 @@ export class DASHController {
       (type) => type && canPlayVideoType(media, type),
     );
 
-    const videoQuality = videoQualities.filter(
+    const videoQualityList = videoQualities.filter(
       (track) => supportedVideoMimeType === track.mimeType,
-    )[0];
+    );
 
     let audioTracks = (this._instance.getTracksForTypeFromManifest as DashGetMediaTracks)(
       'audio',
@@ -238,23 +261,29 @@ export class DASHController {
 
     audioTracks = audioTracks.filter((track) => supportedAudioMimeType === track.mimeType);
 
-    videoQuality.bitrateList.forEach((bitrate, index) => {
-      const quality = {
-        id: bitrate.id?.toString() ?? `dash-bitrate-${index}`,
-        width: bitrate.width ?? 0,
-        height: bitrate.height ?? 0,
-        bitrate: bitrate.bandwidth ?? 0,
-        codec: videoQuality.codec,
-        index,
-      };
+    let qualityIndex = 0;
+    videoQualityList.forEach((videoQuality, index) => {
+      videoQuality.bitrateList.forEach((bitrate) => {
+        const quality = {
+          id: bitrate.id?.toString() ?? `dash-bitrate-${qualityIndex}`,
+          width: bitrate.width ?? 0,
+          height: bitrate.height ?? 0,
+          bitrate: bitrate.bandwidth ?? 0,
+          codec: videoQuality.codec,
+          index: qualityIndex,
+        };
 
-      this._ctx.qualities[ListSymbol._add](quality, trigger);
+        this._ctx.qualities[ListSymbol._add](quality, trigger);
+        qualityIndex++;
+      });
+
+      if (index === 0) {
+        if (isNumber(videoQuality.index)) {
+          const quality = this._ctx.qualities[videoQuality.index];
+          if (quality) this._ctx.qualities[ListSymbol._select](quality, true, trigger);
+        }
+      }
     });
-
-    if (isNumber(videoQuality.index)) {
-      const quality = this._ctx.qualities[videoQuality.index];
-      if (quality) this._ctx.qualities[ListSymbol._select](quality, true, trigger);
-    }
 
     audioTracks.forEach((audioTrack: DASH.MediaInfo, index) => {
       // Find the label object that matches the user's preferred languages
@@ -354,6 +383,7 @@ export class DASHController {
     // Force update so ABR engine can re-calc.
     const { qualities } = this._ctx;
     this._instance?.setQualityFor('video', qualities.selectedIndex, true);
+    this._trackQualityChange = null;
   }
 
   private _switchAutoBitrate(type: DASH.MediaType, auto: boolean) {
@@ -367,8 +397,24 @@ export class DASHController {
 
     if (!this._instance || qualities.auto || !qualities.selected) return;
 
+    let currentTrack = this._instance.getCurrentTrackFor('video');
+    if (currentTrack?.codec !== qualities.selected.codec) {
+      const nextVideoTrack = this._instance
+        .getTracksFor('video')
+        .find((t) => t.codec === qualities.selected!.codec);
+      if (nextVideoTrack) {
+        this._instance.setCurrentTrack(nextVideoTrack);
+        currentTrack = nextVideoTrack;
+      }
+      this._trackQualityChange = qualities.selected;
+    }
+
+    const qualityIndex =
+      currentTrack?.bitrateList.findIndex((b) => b.height === qualities.selected!.height) ??
+      qualities.selectedIndex;
+
     this._switchAutoBitrate('video', false);
-    this._instance.setQualityFor('video', qualities.selectedIndex, qualities.switch === 'current');
+    this._instance.setQualityFor('video', qualityIndex, qualities.switch === 'current');
 
     /**
      * Chrome has some strange issue with detecting keyframes inserted before the current
