@@ -204,11 +204,6 @@ export class DASHController {
       quality = this._trackQualityChange;
       this._trackQualityChange = null;
     } else {
-      // const currentQualityIndex = this._instance.getQualityFor('video');
-      // const currentQuality = currentTrack.bitrateList[event.newQuality];
-      // const qualities = this._ctx.qualities.toArray();
-      // quality = qualities.find(q => q.id === currentQuality.id) ??
-      //   qualities.find(q => q.height === currentQuality.height && q.bitrate === currentQuality.bandwidth) ?? null;
       quality = this._ctx.qualities[event.newQuality];
     }
 
