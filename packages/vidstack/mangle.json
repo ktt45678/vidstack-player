@@ -802,5 +802,6 @@
   "_instanceDisposeFn": "Vn",
   "_libAssCtor": "Un",
   "_processCDNSrc": "Xn",
-  "_setCurrentTrack": "Wn"
+  "_setCurrentTrack": "Wn",
+  "_trackQualityChange": "Yn"
 }
