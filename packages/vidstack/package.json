@@ -1,6 +1,6 @@
 {
   "name": "@ktt45678/vidstack",
-  "version": "1.11.30-F3",
+  "version": "1.11.30-F4",
   "description": "UI component library for building high-quality, accessible video and audio experiences on the web.",
   "license": "MIT",
   "type": "module",
@@ -51,7 +51,7 @@
     "@types/fscreen": "^1.0.1",
     "autoprefixer": "^10.4.2",
     "compute-scroll-into-view": "^3.1.0",
-    "dashjs": "^4.7.4",
+    "dashjs": "^5.0.0",
     "es-module-lexer": "^1.4.0",
     "esbuild": "^0.23.0",
     "esbuild-minify-templates": "^0.11.0",
