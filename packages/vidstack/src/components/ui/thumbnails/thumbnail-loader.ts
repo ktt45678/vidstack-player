@@ -42,7 +42,7 @@ export class ThumbnailsLoader {
 
       if (cache.size > 99) {
         const firstKey = cache.keys().next().value;
-        cache.delete(firstKey);
+        if (firstKey) cache.delete(firstKey);
       }
 
       this.$images.set(cache.get(src)!);
